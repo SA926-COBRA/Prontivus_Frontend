@@ -14,7 +14,20 @@ import { extractErrorMessage } from '@/lib/utils';
 import { BRANDING } from '@/config/branding';
 
 const loginSchema = z.object({
-  email_or_cpf: z.string().min(1, "Email ou CPF é obrigatório"),
+  email_or_cpf: z.string()
+    .min(1, "Email ou CPF é obrigatório")
+    .refine((val) => {
+      // Check if it's a valid email format (contains @ and proper structure)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Check if it's a valid CPF format (11 digits)
+      const cpfRegex = /^\d{11}$/;
+      // Check if it's a CPF with formatting (XXX.XXX.XXX-XX)
+      const cpfFormattedRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+      
+      return emailRegex.test(val) || cpfRegex.test(val) || cpfFormattedRegex.test(val);
+    }, {
+      message: "Formato de email ou CPF inválido"
+    }),
   password: z.string().min(1, "Senha é obrigatória"),
   remember_me: z.boolean().optional(),
 });

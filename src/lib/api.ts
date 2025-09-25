@@ -94,6 +94,52 @@ class ApiService {
   }
 
   async unifiedLogin(emailOrCpf: string, password: string): Promise<any> {
+    // First, lookup user type to determine which endpoint to use
+    try {
+      const lookupResponse = await this.api.post('/api/v1/user-lookup/lookup', {
+        email_or_cpf: emailOrCpf
+      });
+      
+      if (!lookupResponse.data.exists) {
+        throw new Error('Usuário não encontrado');
+      }
+      
+      if (!lookupResponse.data.is_active) {
+        throw new Error('Conta desativada');
+      }
+      
+      if (lookupResponse.data.locked) {
+        throw new Error('Conta temporariamente bloqueada');
+      }
+      
+      // Route to appropriate authentication endpoint based on user type
+      if (lookupResponse.data.user_type === 'patient') {
+        const response = await this.api.post('/api/v1/patient-auth/login', {
+          email_or_cpf: emailOrCpf,
+          password: password,
+        });
+        const data = response.data;
+        localStorage.setItem('user_type', 'patient');
+        localStorage.setItem('user_role', lookupResponse.data.user_role);
+        return data;
+      } else {
+        const response = await this.api.post('/api/v1/auth/login', {
+          email_or_cpf: emailOrCpf,
+          password: password,
+        });
+        const data = response.data;
+        localStorage.setItem('user_type', 'staff');
+        localStorage.setItem('user_role', lookupResponse.data.user_role);
+        return data;
+      }
+    } catch (lookupError: any) {
+      // If lookup fails, fall back to the old unified login method
+      console.warn('User lookup failed, falling back to unified login:', lookupError);
+      return this.fallbackUnifiedLogin(emailOrCpf, password);
+    }
+  }
+
+  async fallbackUnifiedLogin(emailOrCpf: string, password: string): Promise<any> {
     // Try patient portal first (most restrictive)
     try {
       const response = await this.api.post('/api/v1/patient-auth/login', {
@@ -118,6 +164,20 @@ class ApiService {
         throw patientErr;
       }
     }
+  }
+
+  async lookupUserType(emailOrCpf: string): Promise<any> {
+    const response = await this.api.post('/api/v1/user-lookup/lookup', {
+      email_or_cpf: emailOrCpf
+    });
+    return response.data;
+  }
+
+  async checkUserCredentials(emailOrCpf: string): Promise<any> {
+    const response = await this.api.post('/api/v1/user-lookup/check-credentials', {
+      email_or_cpf: emailOrCpf
+    });
+    return response.data;
   }
 
   async registerStaff(userData: any): Promise<any> {

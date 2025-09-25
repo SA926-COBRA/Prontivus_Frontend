@@ -84,25 +84,11 @@ const Login = () => {
     setError(null);
 
     try {
-      console.log('Attempting unified login...');
-      let result;
+      console.log('Attempting optimized login...');
       
-      // Try patient login first (most restrictive)
-      try {
-        console.log('Trying patient login...');
-        result = await apiService.patientLogin(data.email_or_cpf, data.password);
-        console.log('Patient login successful:', result);
-      } catch (patientErr: any) {
-        console.log('Patient login failed, trying staff login...');
-        // If patient login fails, try staff login
-        try {
-          result = await apiService.login(data.email_or_cpf, data.password);
-          console.log('Staff login successful:', result);
-        } catch (staffErr: any) {
-          // Both failed, throw the staff error (which is more generic)
-          throw staffErr;
-        }
-      }
+      // Use the new optimized unified login that checks user type first
+      const result = await apiService.unifiedLogin(data.email_or_cpf, data.password);
+      console.log('Login successful:', result);
 
       // Store tokens
       localStorage.setItem('access_token', result.access_token);
@@ -122,11 +108,16 @@ const Login = () => {
       }
 
       // Success - redirect based on user type and role
-      const redirectPath = getRedirectPath(result.user_type, result.user_role);
-      console.log(`Login successful! User type: ${result.user_type}, Role: ${result.user_role}, Redirecting to: ${redirectPath}`);
+      const userType = localStorage.getItem('user_type') || result.user_type;
+      const userRole = localStorage.getItem('user_role') || result.user_role;
+      const redirectPath = getRedirectPath(userType, userRole);
+      
+      console.log(`Login successful! User type: ${userType}, Role: ${userRole}, Redirecting to: ${redirectPath}`);
       console.log('Stored user_type in localStorage:', localStorage.getItem('user_type'));
+      console.log('Stored user_role in localStorage:', localStorage.getItem('user_role'));
       console.log('Full result object:', result);
       console.log('About to navigate to:', redirectPath);
+      
       navigate(redirectPath);
     } catch (err: any) {
       console.error('Login error:', err);
@@ -134,7 +125,13 @@ const Login = () => {
       // Provide more specific error messages based on the error
       let errorMessage = "Erro ao fazer login. Verifique suas credenciais.";
       
-      if (err.response?.status === 403) {
+      if (err.message?.includes('Usuário não encontrado')) {
+        errorMessage = "Usuário não encontrado. Verifique seu email/CPF.";
+      } else if (err.message?.includes('Conta desativada')) {
+        errorMessage = "Sua conta foi desativada. Entre em contato com o administrador.";
+      } else if (err.message?.includes('Conta temporariamente bloqueada')) {
+        errorMessage = "Sua conta foi temporariamente bloqueada devido a múltiplas tentativas de login.";
+      } else if (err.response?.status === 403) {
         if (err.response?.data?.detail?.includes("patient portal")) {
           errorMessage = "Acesso negado. Pacientes devem usar o portal do paciente.";
         } else if (err.response?.data?.detail?.includes("main system")) {

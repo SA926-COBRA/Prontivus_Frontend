@@ -7,7 +7,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_URL || 'https://prontivus-backend-pa1e.onrender.com',
-      timeout: 10000,
+      timeout: 30000, // Increased timeout to 30 seconds for registration
       headers: {
         'Content-Type': 'application/json',
       },

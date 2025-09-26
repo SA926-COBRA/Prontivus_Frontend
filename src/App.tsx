@@ -44,6 +44,8 @@ import NotFound from "./pages/NotFound";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import SurgicalProcedures from "./pages/SurgicalProcedures";
 import SurgicalEstimates from "./pages/SurgicalEstimates";
+import ReportsDashboard from "./pages/ReportsDashboard";
+import ReportGeneration from "./pages/ReportGeneration";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +129,14 @@ const App = () => (
           <Route path="/commercial/contracts" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           <Route path="/commercial/packages" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           <Route path="/commercial/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          
+          {/* Reports Module Routes */}
+          <Route path="/reports" element={<RoleGuard allowedUserTypes={['staff']}><ReportsDashboard /></RoleGuard>} />
+          <Route path="/reports/generate" element={<RoleGuard allowedUserTypes={['staff']}><ReportGeneration /></RoleGuard>} />
+          <Route path="/reports/templates" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/reports/my-reports" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/reports/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/reports/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

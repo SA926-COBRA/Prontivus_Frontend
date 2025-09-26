@@ -48,6 +48,9 @@ import ReportsDashboard from "./pages/ReportsDashboard";
 import ReportGeneration from "./pages/ReportGeneration";
 import VoiceRecording from "./pages/VoiceRecording";
 import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
+import BIAnalyticsDashboard from "./pages/BIAnalyticsDashboard";
+import PerformanceAnalytics from "./pages/PerformanceAnalytics";
+import AnalyticsInsights from "./pages/AnalyticsInsights";
 
 const queryClient = new QueryClient();
 
@@ -140,14 +143,25 @@ const App = () => (
           <Route path="/reports/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           <Route path="/reports/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
-          {/* Voice Processing Module Routes */}
-          <Route path="/voice" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
-          <Route path="/voice/recording" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
-          <Route path="/voice/sessions" element={<RoleGuard allowedUserTypes={['staff']}><VoiceSessionsDashboard /></RoleGuard>} />
-          <Route path="/voice/transcriptions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
-          <Route path="/voice/notes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
-          <Route path="/voice/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
-          <Route path="/voice/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 {/* Voice Processing Module Routes */}
+                 <Route path="/voice" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
+                 <Route path="/voice/recording" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
+                 <Route path="/voice/sessions" element={<RoleGuard allowedUserTypes={['staff']}><VoiceSessionsDashboard /></RoleGuard>} />
+                 <Route path="/voice/transcriptions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/voice/notes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/voice/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/voice/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* BI Analytics Module Routes */}
+                 <Route path="/bi-analytics" element={<RoleGuard allowedUserTypes={['staff']}><BIAnalyticsDashboard /></RoleGuard>} />
+                 <Route path="/bi-analytics/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><BIAnalyticsDashboard /></RoleGuard>} />
+                 <Route path="/bi-analytics/performance" element={<RoleGuard allowedUserTypes={['staff']}><PerformanceAnalytics /></RoleGuard>} />
+                 <Route path="/bi-analytics/insights" element={<RoleGuard allowedUserTypes={['staff']}><AnalyticsInsights /></RoleGuard>} />
+                 <Route path="/bi-analytics/reports" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/bi-analytics/dashboards" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/bi-analytics/metrics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/bi-analytics/alerts" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/bi-analytics/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

@@ -18,6 +18,7 @@ import SecretaryDashboard from "./pages/SecretaryDashboard";
 import SecretariaAgenda from "./pages/SecretariaAgenda";
 import SecretariaCheckin from "./pages/SecretariaCheckin";
 import SecretariaPacientes from "./pages/SecretariaPacientes";
+import SecretarialDashboard from "./pages/SecretarialDashboard";
 import FinancialDashboard from "./pages/FinancialDashboard";
 import Atendimento from "./pages/Atendimento";
 import Agenda from "./pages/Agenda";
@@ -74,6 +75,7 @@ const App = () => (
           <Route path="/secretaria/agenda" element={<RoleGuard allowedUserTypes={['staff']}><SecretariaAgenda /></RoleGuard>} />
           <Route path="/secretaria/checkin" element={<RoleGuard allowedUserTypes={['staff']}><SecretariaCheckin /></RoleGuard>} />
           <Route path="/secretaria/pacientes" element={<RoleGuard allowedUserTypes={['staff']}><SecretariaPacientes /></RoleGuard>} />
+          <Route path="/secretaria/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><SecretarialDashboard /></RoleGuard>} />
           <Route path="/secretaria/agendamentos" element={<RoleGuard allowedUserTypes={['staff']}><AppointmentManagement /></RoleGuard>} />
           <Route path="/secretaria/cadastro-paciente" element={<RoleGuard allowedUserTypes={['staff']}><PatientRegistration /></RoleGuard>} />
           <Route path="/secretary" element={<RoleGuard allowedUserTypes={['staff']}><SecretaryDashboard /></RoleGuard>} />

@@ -993,6 +993,41 @@ class ApiService {
     }
   }
 
+  // Secretarial Dashboard API methods
+  async getSecretarialDashboard(): Promise<any> {
+    const response = await this.api.get('/api/v1/secretarial-dashboard/dashboard');
+    return response.data;
+  }
+
+  async getPatientQueue(statusFilter?: string, priorityFilter?: string): Promise<any> {
+    const params: any = {};
+    if (statusFilter) params.status_filter = statusFilter;
+    if (priorityFilter) params.priority_filter = priorityFilter;
+    
+    const response = await this.api.get('/api/v1/secretarial-dashboard/queue', { params });
+    return response.data;
+  }
+
+  async updatePatientStatus(checkinId: number, newStatus: string, notes?: string): Promise<any> {
+    const response = await this.api.post(`/api/v1/secretarial-dashboard/queue/${checkinId}/update-status`, {
+      new_status: newStatus,
+      notes: notes
+    });
+    return response.data;
+  }
+
+  async updatePatientPriority(checkinId: number, priority: string): Promise<any> {
+    const response = await this.api.post(`/api/v1/secretarial-dashboard/queue/${checkinId}/priority`, {
+      priority: priority
+    });
+    return response.data;
+  }
+
+  async getQueueStatistics(): Promise<any> {
+    const response = await this.api.get('/api/v1/secretarial-dashboard/statistics');
+    return response.data;
+  }
+
   // Health check
   async healthCheck(): Promise<any> {
     const response = await this.api.get('/health');

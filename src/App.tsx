@@ -55,6 +55,7 @@ import ControlledPrescriptions from "./pages/ControlledPrescriptions";
 import SADTManagement from "./pages/SADTManagement";
 import FinancialDashboard from "./pages/FinancialDashboard";
 import TISSManagement from "./pages/TISSManagement";
+import StatisticalReportsDashboard from "./pages/StatisticalReportsDashboard";
 
 const queryClient = new QueryClient();
 
@@ -186,6 +187,15 @@ const App = () => (
                  <Route path="/financial/payments" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/financial/reports" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/financial/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* Statistical Reports Module Routes */}
+                 <Route path="/statistical-reports" element={<RoleGuard allowedUserTypes={['staff']}><StatisticalReportsDashboard /></RoleGuard>} />
+                 <Route path="/statistical-reports/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><StatisticalReportsDashboard /></RoleGuard>} />
+                 <Route path="/statistical-reports/templates" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/statistical-reports/metrics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/statistical-reports/dashboards" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/statistical-reports/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/statistical-reports/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

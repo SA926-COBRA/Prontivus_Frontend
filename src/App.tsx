@@ -53,6 +53,8 @@ import PerformanceAnalytics from "./pages/PerformanceAnalytics";
 import AnalyticsInsights from "./pages/AnalyticsInsights";
 import ControlledPrescriptions from "./pages/ControlledPrescriptions";
 import SADTManagement from "./pages/SADTManagement";
+import FinancialDashboard from "./pages/FinancialDashboard";
+import TISSManagement from "./pages/TISSManagement";
 
 const queryClient = new QueryClient();
 
@@ -174,6 +176,16 @@ const App = () => (
                  <Route path="/advanced-emr/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/advanced-emr/audit" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/advanced-emr/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* Financial and TISS Module Routes */}
+                 <Route path="/financial" element={<RoleGuard allowedUserTypes={['staff']}><FinancialDashboard /></RoleGuard>} />
+                 <Route path="/financial/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><FinancialDashboard /></RoleGuard>} />
+                 <Route path="/financial/tiss" element={<RoleGuard allowedUserTypes={['staff']}><TISSManagement /></RoleGuard>} />
+                 <Route path="/financial/procedures" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/financial/invoices" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/financial/payments" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/financial/reports" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/financial/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

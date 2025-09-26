@@ -1,732 +1,521 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  FileText, 
-  Download,
-  Plus,
-  Eye,
-  Calendar,
-  Users,
-  CreditCard,
-  Receipt
-} from 'lucide-react';
-import { apiService } from '@/lib/api';
+  CurrencyDollarIcon, 
+  DocumentTextIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ChartBarIcon,
+  PlusIcon,
+  EyeIcon,
+  PencilIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
+import { ModernCard, GradientButton, AnimatedCounter, StatusIndicator, LoadingSpinner } from '../components/ui/ModernComponents';
+import { financialTISSApiService, FinancialSummary, TISSProcedure, Invoice, Payment } from '../lib/financialTISSApi';
 
-interface BillingDashboard {
-  total_revenue: number;
-  total_payments: number;
-  outstanding_receivables: number;
-  overdue_receivables: number;
-  total_expenses: number;
-  net_profit: number;
-  date_from: string;
-  date_to: string;
+interface FinancialDashboardProps {
+  className?: string;
 }
 
-interface Billing {
-  id: number;
-  billing_number: string;
-  patient_name: string;
-  patient_cpf: string;
-  doctor_name: string;
-  billing_type: string;
-  billing_date: string;
-  due_date: string;
-  total_amount: number;
-  paid_amount: number;
-  balance_amount: number;
-  payment_status: string;
-  insurance_company: string;
-}
-
-interface AccountsReceivable {
-  id: number;
-  patient_name: string;
-  patient_cpf: string;
-  invoice_number: string;
-  invoice_date: string;
-  due_date: string;
-  original_amount: number;
-  outstanding_amount: number;
-  days_overdue: number;
-  aging_bucket: string;
-  status: string;
-}
-
-interface PhysicianPayout {
-  id: number;
-  payout_number: string;
-  doctor_name: string;
-  payout_date: string;
-  payout_period_start: string;
-  payout_period_end: string;
-  gross_revenue: number;
-  facility_fee: number;
-  net_payout: number;
-  consultation_count: number;
-  procedure_count: number;
-  status: string;
-  is_paid: boolean;
-}
-
-const FinancialDashboard: React.FC = () => {
-  const [dashboard, setDashboard] = useState<BillingDashboard | null>(null);
-  const [billings, setBillings] = useState<Billing[]>([]);
-  const [receivables, setReceivables] = useState<AccountsReceivable[]>([]);
-  const [payouts, setPayouts] = useState<PhysicianPayout[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showBillingDialog, setShowBillingDialog] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [selectedBilling, setSelectedBilling] = useState<Billing | null>(null);
-
-  // Date range state
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-
-  // Billing form state
-  const [billingForm, setBillingForm] = useState({
+const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ className = '' }) => {
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'procedures' | 'invoices' | 'payments'>('overview');
+  const [searchFilters, setSearchFilters] = useState({
     patient_id: '',
     doctor_id: '',
-    billing_type: 'private',
-    billing_date: new Date().toISOString().split('T')[0],
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    tax_amount: 0,
-    discount_amount: 0,
-    paid_amount: 0,
-    insurance_company: '',
-    insurance_number: '',
-    notes: ''
+    status: '',
+    date_from: '',
+    date_to: ''
+  });
+  const queryClient = useQueryClient();
+
+  // Fetch financial summary
+  const { data: financialSummary, isLoading: summaryLoading } = useQuery({
+    queryKey: ['financial-summary'],
+    queryFn: () => financialTISSApiService.getFinancialSummary(),
+    refetchInterval: 300000, // 5 minutes
   });
 
-  // Payment form state
-  const [paymentForm, setPaymentForm] = useState({
-    payment_date: new Date().toISOString(),
-    payment_method: 'cash',
-    amount: 0,
-    transaction_id: '',
-    bank_name: '',
-    account_number: '',
-    check_number: '',
-    notes: ''
+  // Fetch TISS procedures
+  const { data: procedures, isLoading: proceduresLoading } = useQuery({
+    queryKey: ['tiss-procedures', searchFilters],
+    queryFn: () => financialTISSApiService.getTISSProcedures({
+      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
+      doctor_id: searchFilters.doctor_id ? parseInt(searchFilters.doctor_id) : undefined,
+      status: searchFilters.status || undefined,
+      date_from: searchFilters.date_from || undefined,
+      date_to: searchFilters.date_to || undefined,
+      limit: 100
+    }),
   });
 
-  useEffect(() => {
-    loadDashboard();
-    loadBillings();
-    loadReceivables();
-    loadPayouts();
-  }, [dateFrom, dateTo]);
+  // Fetch invoices
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['invoices', searchFilters],
+    queryFn: () => financialTISSApiService.getInvoices({
+      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
+      status: searchFilters.status || undefined,
+      date_from: searchFilters.date_from || undefined,
+      date_to: searchFilters.date_to || undefined,
+      limit: 100
+    }),
+  });
 
-  const loadDashboard = async () => {
-    try {
-      const response = await apiService.get('/api/v1/financial/dashboard', {
-        params: { date_from: dateFrom, date_to: dateTo }
-      });
-      setDashboard(response.data);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
+  // Fetch payments
+  const { data: payments, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['payments', searchFilters],
+    queryFn: () => financialTISSApiService.getPayments({
+      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
+      date_from: searchFilters.date_from || undefined,
+      date_to: searchFilters.date_to || undefined,
+      limit: 100
+    }),
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+      case 'paid':
+        return 'text-green-600 bg-green-100';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'rejected':
+      case 'failed':
+        return 'text-red-600 bg-red-100';
+      case 'processing':
+        return 'text-blue-600 bg-blue-100';
+      case 'cancelled':
+        return 'text-gray-600 bg-gray-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
-  const loadBillings = async () => {
-    try {
-      const response = await apiService.get('/api/v1/financial/billing', {
-        params: { date_from: dateFrom, date_to: dateTo }
-      });
-      setBillings(response.data);
-    } catch (error) {
-      console.error('Error loading billings:', error);
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(amount);
   };
 
-  const loadReceivables = async () => {
-    try {
-      const response = await apiService.get('/api/v1/financial/accounts-receivable');
-      setReceivables(response.data);
-    } catch (error) {
-      console.error('Error loading receivables:', error);
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const loadPayouts = async () => {
-    try {
-      const response = await apiService.get('/api/v1/financial/physician-payouts');
-      setPayouts(response.data);
-    } catch (error) {
-      console.error('Error loading payouts:', error);
-    }
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR');
   };
 
-  const handleCreateBilling = async () => {
-    try {
-      await apiService.post('/api/v1/financial/billing', {
-        ...billingForm,
-        items: [
-          {
-            item_type: 'consultation',
-            item_name: 'Consulta Médica',
-            quantity: 1,
-            unit_price: 150,
-            total_price: 150
-          }
-        ]
-      });
-      setShowBillingDialog(false);
-      setBillingForm({
-        patient_id: '',
-        doctor_id: '',
-        billing_type: 'private',
-        billing_date: new Date().toISOString().split('T')[0],
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tax_amount: 0,
-        discount_amount: 0,
-        paid_amount: 0,
-        insurance_company: '',
-        insurance_number: '',
-        notes: ''
-      });
-      loadBillings();
-      loadDashboard();
-    } catch (error) {
-      console.error('Error creating billing:', error);
-    }
-  };
-
-  const handleAddPayment = async () => {
-    if (!selectedBilling) return;
-    
-    try {
-      await apiService.post(`/api/v1/financial/billing/${selectedBilling.id}/payment`, paymentForm);
-      setShowPaymentDialog(false);
-      setSelectedBilling(null);
-      setPaymentForm({
-        payment_date: new Date().toISOString(),
-        payment_method: 'cash',
-        amount: 0,
-        transaction_id: '',
-        bank_name: '',
-        account_number: '',
-        check_number: '',
-        notes: ''
-      });
-      loadBillings();
-      loadDashboard();
-    } catch (error) {
-      console.error('Error adding payment:', error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
-      paid: { color: 'bg-green-100 text-green-800', label: 'Pago' },
-      overdue: { color: 'bg-red-100 text-red-800', label: 'Vencido' },
-      cancelled: { color: 'bg-gray-100 text-gray-800', label: 'Cancelado' },
-      refunded: { color: 'bg-blue-100 text-blue-800', label: 'Reembolsado' },
-      disputed: { color: 'bg-orange-100 text-orange-800', label: 'Disputado' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    return <Badge className={config.color}>{config.label}</Badge>;
-  };
-
-  const getBillingTypeBadge = (type: string) => {
-    const typeConfig = {
-      tiss: { color: 'bg-blue-100 text-blue-800', label: 'TISS' },
-      private: { color: 'bg-green-100 text-green-800', label: 'Particular' },
-      cash: { color: 'bg-purple-100 text-purple-800', label: 'Dinheiro' },
-      insurance: { color: 'bg-orange-100 text-orange-800', label: 'Convênio' },
-      corporate: { color: 'bg-gray-100 text-gray-800', label: 'Empresarial' }
-    };
-    
-    const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.private;
-    return <Badge className={config.color}>{config.label}</Badge>;
-  };
-
-  const getAgingBadge = (bucket: string) => {
-    const bucketConfig = {
-      current: { color: 'bg-green-100 text-green-800', label: 'Atual' },
-      '30': { color: 'bg-yellow-100 text-yellow-800', label: '30 dias' },
-      '60': { color: 'bg-orange-100 text-orange-800', label: '60 dias' },
-      '90': { color: 'bg-red-100 text-red-800', label: '90 dias' },
-      '120+': { color: 'bg-red-200 text-red-900', label: '120+ dias' }
-    };
-    
-    const config = bucketConfig[bucket as keyof typeof bucketConfig] || bucketConfig.current;
-    return <Badge className={config.color}>{config.label}</Badge>;
-  };
-
-  if (loading) {
+  if (summaryLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Painel Financeiro</h1>
-        <div className="flex gap-2">
-          <Dialog open={showBillingDialog} onOpenChange={setShowBillingDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Cobrança
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Cobrança</DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="patient_id">ID do Paciente</Label>
-                  <Input
-                    id="patient_id"
-                    value={billingForm.patient_id}
-                    onChange={(e) => setBillingForm({ ...billingForm, patient_id: e.target.value })}
-                    placeholder="Digite o ID do paciente"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="doctor_id">ID do Médico</Label>
-                  <Input
-                    id="doctor_id"
-                    value={billingForm.doctor_id}
-                    onChange={(e) => setBillingForm({ ...billingForm, doctor_id: e.target.value })}
-                    placeholder="Digite o ID do médico"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="billing_type">Tipo de Cobrança</Label>
-                  <Select
-                    value={billingForm.billing_type}
-                    onValueChange={(value) => setBillingForm({ ...billingForm, billing_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tiss">TISS</SelectItem>
-                      <SelectItem value="private">Particular</SelectItem>
-                      <SelectItem value="cash">Dinheiro</SelectItem>
-                      <SelectItem value="insurance">Convênio</SelectItem>
-                      <SelectItem value="corporate">Empresarial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="billing_date">Data da Cobrança</Label>
-                  <Input
-                    id="billing_date"
-                    type="date"
-                    value={billingForm.billing_date}
-                    onChange={(e) => setBillingForm({ ...billingForm, billing_date: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="due_date">Data de Vencimento</Label>
-                  <Input
-                    id="due_date"
-                    type="date"
-                    value={billingForm.due_date}
-                    onChange={(e) => setBillingForm({ ...billingForm, due_date: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="insurance_company">Convênio</Label>
-                  <Input
-                    id="insurance_company"
-                    value={billingForm.insurance_company}
-                    onChange={(e) => setBillingForm({ ...billingForm, insurance_company: e.target.value })}
-                    placeholder="Nome do convênio"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="notes">Observações</Label>
-                  <Textarea
-                    id="notes"
-                    value={billingForm.notes}
-                    onChange={(e) => setBillingForm({ ...billingForm, notes: e.target.value })}
-                    placeholder="Observações sobre a cobrança"
-                  />
-                </div>
-              </div>
-              <Button onClick={handleCreateBilling} className="w-full">
-                Criar Cobrança
-              </Button>
-            </DialogContent>
-          </Dialog>
+    <div className={`space-y-6 ${className}`}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Financial Dashboard</h1>
+          <p className="text-gray-600">Manage TISS procedures, invoices, and payments</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <GradientButton
+            onClick={() => setSelectedTab('procedures')}
+            className="flex items-center gap-2"
+          >
+            <PlusIcon className="w-4 h-4" />
+            New Procedure
+          </GradientButton>
         </div>
       </div>
 
-      {/* Date Range Filter */}
-      <div className="flex gap-4 items-end">
-        <div>
-          <Label htmlFor="date_from">Data Inicial</Label>
-          <Input
-            id="date_from"
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="date_to">Data Final</Label>
-          <Input
-            id="date_to"
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
-        </div>
-        <Button onClick={() => { loadDashboard(); loadBillings(); }}>
-          <Calendar className="w-4 h-4 mr-2" />
-          Atualizar
-        </Button>
-      </div>
-
-      {/* Dashboard Cards */}
-      {dashboard && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ {dashboard.total_revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-              <p className="text-xs text-muted-foreground">
-                {dashboard.date_from} - {dashboard.date_to}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pagamentos</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ {dashboard.total_payments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-              <p className="text-xs text-muted-foreground">
-                Recebido no período
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">A Receber</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ {dashboard.outstanding_receivables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-              <p className="text-xs text-muted-foreground">
-                Em aberto
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${dashboard.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                R$ {dashboard.net_profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      {/* Summary Cards */}
+      {financialSummary && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ModernCard className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                <AnimatedCounter
+                  value={financialSummary.total_revenue}
+                  className="text-2xl font-bold text-gray-900"
+                  prefix="R$ "
+                />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Receita - Despesas
-              </p>
-            </CardContent>
-          </Card>
+              <div className="p-3 bg-green-100 rounded-full">
+                <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </ModernCard>
+
+          <ModernCard className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                <AnimatedCounter
+                  value={financialSummary.total_payments}
+                  className="text-2xl font-bold text-gray-900"
+                  prefix="R$ "
+                />
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <CheckCircleIcon className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </ModernCard>
+
+          <ModernCard className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Outstanding</p>
+                <AnimatedCounter
+                  value={financialSummary.total_outstanding}
+                  className="text-2xl font-bold text-gray-900"
+                  prefix="R$ "
+                />
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <ExclamationTriangleIcon className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </ModernCard>
+
+          <ModernCard className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Procedures</p>
+                <AnimatedCounter
+                  value={financialSummary.total_procedures}
+                  className="text-2xl font-bold text-gray-900"
+                />
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <DocumentTextIcon className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </ModernCard>
         </div>
       )}
 
-      {/* Main Content */}
-      <Tabs defaultValue="billings" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="billings">Cobranças</TabsTrigger>
-          <TabsTrigger value="receivables">A Receber</TabsTrigger>
-          <TabsTrigger value="payouts">Pagamentos Médicos</TabsTrigger>
-          <TabsTrigger value="reports">Relatórios</TabsTrigger>
-        </TabsList>
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
+            { id: 'procedures', name: 'Procedures', icon: DocumentTextIcon },
+            { id: 'invoices', name: 'Invoices', icon: CurrencyDollarIcon },
+            { id: 'payments', name: 'Payments', icon: CheckCircleIcon }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedTab(tab.id as any)}
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                selectedTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.name}
+            </button>
+          ))}
+        </nav>
+      </div>
 
-        <TabsContent value="billings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cobranças</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {billings.map((billing) => (
-                  <div key={billing.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <h3 className="font-semibold">{billing.billing_number}</h3>
-                        <p className="text-sm text-gray-600">{billing.patient_name}</p>
-                        <p className="text-sm text-gray-600">CPF: {billing.patient_cpf}</p>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        {getStatusBadge(billing.payment_status)}
-                        {getBillingTypeBadge(billing.billing_type)}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="font-semibold">R$ {billing.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        <p className="text-sm text-gray-600">
-                          Vencimento: {new Date(billing.due_date).toLocaleDateString('pt-BR')}
-                        </p>
-                        {billing.balance_amount > 0 && (
-                          <p className="text-sm text-red-600">
-                            Saldo: R$ {billing.balance_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedBilling(billing);
-                            setPaymentForm({ ...paymentForm, amount: billing.balance_amount });
-                            setShowPaymentDialog(true);
-                          }}
-                        >
-                          <Receipt className="w-4 h-4 mr-2" />
-                          Pagamento
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="receivables" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contas a Receber</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {receivables.map((receivable) => (
-                  <div key={receivable.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <h3 className="font-semibold">{receivable.invoice_number}</h3>
-                        <p className="text-sm text-gray-600">{receivable.patient_name}</p>
-                        <p className="text-sm text-gray-600">CPF: {receivable.patient_cpf}</p>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        {getAgingBadge(receivable.aging_bucket)}
-                        {receivable.days_overdue > 0 && (
-                          <Badge className="bg-red-100 text-red-800">
-                            {receivable.days_overdue} dias em atraso
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="font-semibold">R$ {receivable.outstanding_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        <p className="text-sm text-gray-600">
-                          Vencimento: {new Date(receivable.due_date).toLocaleDateString('pt-BR')}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Original: R$ {receivable.original_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        <Button size="sm" variant="outline">
-                          <AlertTriangle className="w-4 h-4 mr-2" />
-                          Cobrar
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payouts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pagamentos Médicos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {payouts.map((payout) => (
-                  <div key={payout.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div>
-                        <h3 className="font-semibold">{payout.payout_number}</h3>
-                        <p className="text-sm text-gray-600">{payout.doctor_name}</p>
-                        <p className="text-sm text-gray-600">
-                          Período: {new Date(payout.payout_period_start).toLocaleDateString('pt-BR')} - {new Date(payout.payout_period_end).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        <Badge className={payout.is_paid ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-                          {payout.is_paid ? "Pago" : "Pendente"}
-                        </Badge>
-                        <Badge className="bg-blue-100 text-blue-800">
-                          {payout.consultation_count} consultas
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="font-semibold">R$ {payout.net_payout.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        <p className="text-sm text-gray-600">
-                          Bruto: R$ {payout.gross_revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Taxa: R$ {payout.facility_fee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <div className="flex flex-col space-y-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver
-                        </Button>
-                        {!payout.is_paid && (
-                          <Button size="sm">
-                            <CreditCard className="w-4 h-4 mr-2" />
-                            Pagar
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Relatórios</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-20 flex flex-col">
-                  <FileText className="w-6 h-6 mb-2" />
-                  Relatório de Cobranças
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col">
-                  <Download className="w-6 h-6 mb-2" />
-                  Contas a Receber
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col">
-                  <Users className="w-6 h-6 mb-2" />
-                  Pagamentos Médicos
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar Pagamento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="payment_date">Data do Pagamento</Label>
-              <Input
-                id="payment_date"
-                type="datetime-local"
-                value={paymentForm.payment_date}
-                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="payment_method">Método de Pagamento</Label>
-              <Select
-                value={paymentForm.payment_method}
-                onValueChange={(value) => setPaymentForm({ ...paymentForm, payment_method: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Dinheiro</SelectItem>
-                  <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                  <SelectItem value="debit_card">Cartão de Débito</SelectItem>
-                  <SelectItem value="bank_transfer">Transferência</SelectItem>
-                  <SelectItem value="check">Cheque</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="amount">Valor</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <Label htmlFor="transaction_id">ID da Transação</Label>
-              <Input
-                id="transaction_id"
-                value={paymentForm.transaction_id}
-                onChange={(e) => setPaymentForm({ ...paymentForm, transaction_id: e.target.value })}
-                placeholder="ID da transação (opcional)"
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Observações</Label>
-              <Textarea
-                id="notes"
-                value={paymentForm.notes}
-                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                placeholder="Observações sobre o pagamento"
-              />
-            </div>
-            <Button onClick={handleAddPayment} className="w-full">
-              Adicionar Pagamento
-            </Button>
+      {/* Search and Filters */}
+      <ModernCard className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+            <input
+              type="number"
+              value={searchFilters.patient_id}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, patient_id: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Patient ID"
+            />
           </div>
-        </DialogContent>
-      </Dialog>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Doctor ID</label>
+            <input
+              type="number"
+              value={searchFilters.doctor_id}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, doctor_id: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Doctor ID"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <select
+              value={searchFilters.status}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="paid">Paid</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+            <input
+              type="date"
+              value={searchFilters.date_from}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, date_from: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+            <input
+              type="date"
+              value={searchFilters.date_to}
+              onChange={(e) => setSearchFilters(prev => ({ ...prev, date_to: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+      </ModernCard>
+
+      {/* Tab Content */}
+      {selectedTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue by Category */}
+          <ModernCard className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Category</h3>
+            {financialSummary && Object.keys(financialSummary.revenue_by_category).length > 0 ? (
+              <div className="space-y-3">
+                {Object.entries(financialSummary.revenue_by_category).map(([category, amount]) => (
+                  <div key={category} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 capitalize">{category.replace('_', ' ')}</span>
+                    <span className="font-medium">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <ChartBarIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>No revenue data available</p>
+              </div>
+            )}
+          </ModernCard>
+
+          {/* Payments by Method */}
+          <ModernCard className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Payments by Method</h3>
+            {financialSummary && Object.keys(financialSummary.payments_by_method).length > 0 ? (
+              <div className="space-y-3">
+                {Object.entries(financialSummary.payments_by_method).map(([method, amount]) => (
+                  <div key={method} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 capitalize">{method}</span>
+                    <span className="font-medium">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <CurrencyDollarIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p>No payment data available</p>
+              </div>
+            )}
+          </ModernCard>
+        </div>
+      )}
+
+      {selectedTab === 'procedures' && (
+        <ModernCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">TISS Procedures</h3>
+            <StatusIndicator status="info" />
+          </div>
+          
+          {proceduresLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <LoadingSpinner />
+            </div>
+          ) : procedures && procedures.length > 0 ? (
+            <div className="space-y-3">
+              {procedures.map((procedure) => (
+                <div key={procedure.id} className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-medium text-gray-900">{procedure.procedure_number}</h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(procedure.status)}`}>
+                          {procedure.status}
+                        </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(procedure.payment_status)}`}>
+                          {procedure.payment_status}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        Patient: {procedure.patient_id} • Doctor: {procedure.doctor_id}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        {procedure.medical_indication}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600">
+                        {formatDateTime(procedure.procedure_date)} • {formatCurrency(procedure.final_value)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-gray-400 hover:text-blue-600">
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-gray-400 hover:text-green-600">
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <DocumentTextIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p>No procedures found</p>
+            </div>
+          )}
+        </ModernCard>
+      )}
+
+      {selectedTab === 'invoices' && (
+        <ModernCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Invoices</h3>
+            <StatusIndicator status="info" />
+          </div>
+          
+          {invoicesLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <LoadingSpinner />
+            </div>
+          ) : invoices && invoices.length > 0 ? (
+            <div className="space-y-3">
+              {invoices.map((invoice) => (
+                <div key={invoice.id} className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-medium text-gray-900">{invoice.invoice_number}</h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
+                          {invoice.status}
+                        </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(invoice.payment_status)}`}>
+                          {invoice.payment_status}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        Patient: {invoice.patient_id} • Procedure: {invoice.procedure_id}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        Due: {formatDate(invoice.due_date)}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600">
+                        {formatCurrency(invoice.total_amount)} • Paid: {formatCurrency(invoice.paid_amount)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-gray-400 hover:text-blue-600">
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-gray-400 hover:text-green-600">
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <CurrencyDollarIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p>No invoices found</p>
+            </div>
+          )}
+        </ModernCard>
+      )}
+
+      {selectedTab === 'payments' && (
+        <ModernCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Payments</h3>
+            <StatusIndicator status="info" />
+          </div>
+          
+          {paymentsLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <LoadingSpinner />
+            </div>
+          ) : payments && payments.length > 0 ? (
+            <div className="space-y-3">
+              {payments.map((payment) => (
+                <div key={payment.id} className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-medium text-gray-900">{payment.payment_number}</h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(payment.status)}`}>
+                          {payment.status}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        Patient: {payment.patient_id} • Invoice: {payment.invoice_id}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600 mb-1">
+                        Method: {payment.payment_method}
+                      </p>
+                      
+                      <p className="text-sm text-gray-600">
+                        {formatDateTime(payment.payment_date)} • {formatCurrency(payment.amount)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-gray-400 hover:text-blue-600">
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-gray-400 hover:text-green-600">
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p>No payments found</p>
+            </div>
+          )}
+        </ModernCard>
+      )}
     </div>
   );
 };

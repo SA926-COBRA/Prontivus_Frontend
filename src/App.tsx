@@ -57,6 +57,7 @@ import FinancialDashboard from "./pages/FinancialDashboard";
 import TISSManagement from "./pages/TISSManagement";
 import StatisticalReportsDashboard from "./pages/StatisticalReportsDashboard";
 import IntegrationsDashboard from "./pages/IntegrationsDashboard";
+import AIIntegrationDashboard from "./pages/AIIntegrationDashboard";
 
 const queryClient = new QueryClient();
 
@@ -208,6 +209,16 @@ const App = () => (
                  <Route path="/integrations/webhooks" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/integrations/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/integrations/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* AI Integration Module Routes */}
+                 <Route path="/ai-integration" element={<RoleGuard allowedUserTypes={['staff']}><AIIntegrationDashboard /></RoleGuard>} />
+                 <Route path="/ai-integration/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><AIIntegrationDashboard /></RoleGuard>} />
+                 <Route path="/ai-integration/configurations" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/ai-integration/summaries" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/ai-integration/transcriptions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/ai-integration/notes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/ai-integration/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/ai-integration/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

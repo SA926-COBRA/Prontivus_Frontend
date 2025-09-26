@@ -51,6 +51,8 @@ import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
 import BIAnalyticsDashboard from "./pages/BIAnalyticsDashboard";
 import PerformanceAnalytics from "./pages/PerformanceAnalytics";
 import AnalyticsInsights from "./pages/AnalyticsInsights";
+import ControlledPrescriptions from "./pages/ControlledPrescriptions";
+import SADTManagement from "./pages/SADTManagement";
 
 const queryClient = new QueryClient();
 
@@ -162,6 +164,16 @@ const App = () => (
                  <Route path="/bi-analytics/metrics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/bi-analytics/alerts" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/bi-analytics/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* Advanced EMR Module Routes */}
+                 <Route path="/advanced-emr" element={<RoleGuard allowedUserTypes={['staff']}><ControlledPrescriptions /></RoleGuard>} />
+                 <Route path="/advanced-emr/prescriptions" element={<RoleGuard allowedUserTypes={['staff']}><ControlledPrescriptions /></RoleGuard>} />
+                 <Route path="/advanced-emr/sadt" element={<RoleGuard allowedUserTypes={['staff']}><SADTManagement /></RoleGuard>} />
+                 <Route path="/advanced-emr/icd-codes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/advanced-emr/procedures" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/advanced-emr/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/advanced-emr/audit" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/advanced-emr/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

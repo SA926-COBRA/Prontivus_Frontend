@@ -21,7 +21,8 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
+import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
+import { ModernCard, GradientButton, AnimatedCounter, ProgressRing } from '@/components/ui/ModernComponents';
 import { dashboardApi, DashboardMetrics, Appointment, PendingTask, FinancialSummary } from '@/lib/dashboardApi';
 import { apiService } from '@/lib/api';
 
@@ -33,6 +34,7 @@ const Dashboard = () => {
   const [financialData, setFinancialData] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeSidebarItem, setActiveSidebarItem] = useState('dashboard');
 
   // Load dashboard data
   useEffect(() => {
@@ -121,392 +123,406 @@ const Dashboard = () => {
     }
   };
 
+  // Sidebar configuration
+  const sidebarItems = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <Activity className="h-4 w-4" />,
+      href: '/dashboard'
+    },
+    {
+      id: 'patients',
+      label: 'Pacientes',
+      icon: <Users className="h-4 w-4" />,
+      href: '/secretaria/pacientes',
+      badge: pendingTasks.length
+    },
+    {
+      id: 'appointments',
+      label: 'Agendamentos',
+      icon: <Calendar className="h-4 w-4" />,
+      href: '/secretaria/agenda',
+      badge: todayAppointments.length
+    },
+    {
+      id: 'medical',
+      label: 'Atendimento',
+      icon: <Stethoscope className="h-4 w-4" />,
+      href: '/atendimento'
+    },
+    {
+      id: 'financial',
+      label: 'Financeiro',
+      icon: <DollarSign className="h-4 w-4" />,
+      href: '/financeiro'
+    },
+    {
+      id: 'reports',
+      label: 'Relatórios',
+      icon: <FileText className="h-4 w-4" />,
+      href: '/relatorios'
+    }
+  ];
+
+  // Main stats for the modern grid
+  const mainStats = [
+    {
+      title: 'Consultas Hoje',
+      value: <AnimatedCounter value={metrics?.todayAppointments || 0} />,
+      change: 12,
+      changeType: 'positive' as const,
+      icon: <Calendar className="h-6 w-6" />,
+      color: 'blue' as const
+    },
+    {
+      title: 'Pacientes Aguardando',
+      value: <AnimatedCounter value={metrics?.waitingPatients || 0} />,
+      change: -3,
+      changeType: 'negative' as const,
+      icon: <Clock className="h-6 w-6" />,
+      color: 'green' as const
+    },
+    {
+      title: 'Receita Hoje',
+      value: `R$ ${(financialData?.todayRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      change: 8,
+      changeType: 'positive' as const,
+      icon: <DollarSign className="h-6 w-6" />,
+      color: 'yellow' as const
+    },
+    {
+      title: 'Taxa de Ocupação',
+      value: `${metrics?.occupancyRate || 0}%`,
+      change: 0,
+      changeType: 'neutral' as const,
+      icon: <TrendingUp className="h-6 w-6" />,
+      color: 'purple' as const
+    }
+  ];
+
   // Show loading state
   if (loading) {
     return (
-      <AppLayout title="Dashboard" subtitle="Carregando dados...">
+      <ModernLayout title="Dashboard" subtitle="Carregando dados...">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Carregando dados do dashboard...</p>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+            <p className="text-gray-500">Carregando dados do dashboard...</p>
           </div>
         </div>
-      </AppLayout>
+      </ModernLayout>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <AppLayout title="Dashboard" subtitle="Erro ao carregar dados">
+      <ModernLayout title="Dashboard" subtitle="Erro ao carregar dados">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="w-8 h-8 mx-auto mb-4 text-red-500" />
             <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={handleRefresh} variant="outline">
+            <GradientButton onClick={handleRefresh} variant="primary">
               <RefreshCw className="w-4 h-4 mr-2" />
               Tentar Novamente
-            </Button>
+            </GradientButton>
           </div>
         </div>
-      </AppLayout>
+      </ModernLayout>
     );
   }
 
   return (
-    <AppLayout 
-      title="Dashboard" 
+    <ModernLayout
+      title="Dashboard"
       subtitle="Visão geral da sua clínica"
+      sidebar={
+        <ModernSidebar
+          items={sidebarItems}
+          activeItem={activeSidebarItem}
+          onItemClick={setActiveSidebarItem}
+        />
+      }
     >
-      <div className="flex items-center justify-between space-y-2 mb-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Visão geral da sua clínica - {new Date().toLocaleDateString('pt-BR')}
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar
-          </Button>
-          <Button asChild>
-            <Link to="/agenda/novo">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Agendamento
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/pacientes/novo">
-              <Users className="w-4 h-4 mr-2" />
-              Novo Paciente
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <ModernPageHeader
+        title="Dashboard"
+        subtitle={`Visão geral da sua clínica - ${new Date().toLocaleDateString('pt-BR')}`}
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Dashboard' }
+        ]}
+        actions={
+          <div className="flex items-center space-x-2">
+            <GradientButton onClick={handleRefresh} variant="secondary" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </GradientButton>
+            <GradientButton asChild>
+              <Link to="/agenda/novo">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Agendamento
+              </Link>
+            </GradientButton>
+            <GradientButton variant="outline" asChild>
+              <Link to="/pacientes/novo">
+                <Users className="w-4 h-4 mr-2" />
+                Novo Paciente
+              </Link>
+            </GradientButton>
+          </div>
+        }
+      />
 
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Consultas Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.todayAppointments || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {todayAppointments.length > 0 ? `${todayAppointments.length} agendadas` : 'Nenhuma consulta hoje'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pacientes Aguardando</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.waitingPatients || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {pendingTasks.filter(task => task.priority === 'high').length} com prioridade alta
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Hoje</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {(financialData?.todayRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              +{financialData?.growthRate || 0}% vs ontem
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Ocupação</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.occupancyRate || 0}%</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics?.occupancyRate && metrics.occupancyRate > 80 ? 'Excelente ocupação' : 'Ocupação moderada'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <ModernStatsGrid stats={mainStats} className="mb-8" />
 
       {/* Main Content */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Today's Appointments */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Consultas de Hoje</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/agenda">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Ver Todas
-                </Link>
-              </Button>
-            </div>
-            <CardDescription>
-              Próximas consultas agendadas para hoje
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {todayAppointments.length > 0 ? (
-                todayAppointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Calendar className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{appointment.patient_name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.doctor_name}</p>
-                      </div>
+        <ModernCard variant="elevated" className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Consultas de Hoje</h3>
+            <GradientButton variant="outline" size="sm" asChild>
+              <Link to="/agenda">
+                <Eye className="w-4 h-4 mr-2" />
+                Ver Todas
+              </Link>
+            </GradientButton>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Próximas consultas agendadas para hoje</p>
+          
+          <div className="space-y-4">
+            {todayAppointments.length > 0 ? (
+              todayAppointments.map((appointment) => (
+                <div key={appointment.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="text-right">
-                        <p className="font-medium">{appointment.appointment_time}</p>
-                        <Badge 
-                          variant={
-                            appointment.status === 'confirmed' ? 'default' : 
-                            appointment.status === 'waiting' ? 'secondary' :
-                            appointment.status === 'completed' ? 'default' :
-                            'destructive'
-                          }
-                          className="text-xs"
-                        >
-                          {appointment.status === 'confirmed' ? 'Confirmada' : 
-                           appointment.status === 'waiting' ? 'Aguardando' :
-                           appointment.status === 'completed' ? 'Concluída' :
-                           appointment.status === 'cancelled' ? 'Cancelada' :
-                           'Agendada'}
-                        </Badge>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => handleDeleteAppointment(appointment.id)}
-                        title="Cancelar consulta"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                    <div>
+                      <p className="font-medium text-gray-900">{appointment.patient_name}</p>
+                      <p className="text-sm text-gray-500">{appointment.doctor_name}</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhuma consulta agendada para hoje</p>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">{appointment.appointment_time}</p>
+                      <Badge 
+                        variant={
+                          appointment.status === 'confirmed' ? 'default' : 
+                          appointment.status === 'waiting' ? 'secondary' :
+                          appointment.status === 'completed' ? 'default' :
+                          'destructive'
+                        }
+                        className="text-xs"
+                      >
+                        {appointment.status === 'confirmed' ? 'Confirmada' : 
+                         appointment.status === 'waiting' ? 'Aguardando' :
+                         appointment.status === 'completed' ? 'Concluída' :
+                         appointment.status === 'cancelled' ? 'Cancelada' :
+                         'Agendada'}
+                      </Badge>
+                    </div>
+                    <GradientButton
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteAppointment(appointment.id)}
+                      title="Cancelar consulta"
+                    >
+                      <X className="w-4 h-4" />
+                    </GradientButton>
+                  </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma consulta agendada para hoje</p>
+              </div>
+            )}
+          </div>
+        </ModernCard>
 
         {/* Pending Tasks */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Tarefas Pendentes</CardTitle>
-              <Badge variant="destructive">{pendingTasks.length}</Badge>
-            </div>
-            <CardDescription>
-              Ações que precisam de atenção
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {pendingTasks.length > 0 ? (
-                pendingTasks.map((task) => (
-                  <div key={task.id} className="flex items-start space-x-3 p-2 border rounded">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${
-                      task.priority === 'high' ? 'bg-red-500' : 
-                      task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                    }`} />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {task.type === 'insurance' ? 'Verificação de Convênio' :
-                         task.type === 'exams' ? 'Exames' : 
-                         task.type === 'consultation' ? 'Consulta' :
-                         task.type === 'billing' ? 'Faturamento' : 'Outros'}
-                      </p>
-                      {task.patient_name && (
-                        <p className="text-xs text-blue-600">{task.patient_name}</p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                      onClick={() => handleDeleteTask(task.id)}
-                      title="Remover tarefa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+        <ModernCard variant="elevated">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Tarefas Pendentes</h3>
+            <Badge variant="destructive">{pendingTasks.length}</Badge>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">Ações que precisam de atenção</p>
+          
+          <div className="space-y-3">
+            {pendingTasks.length > 0 ? (
+              pendingTasks.map((task) => (
+                <div key={task.id} className="flex items-start space-x-3 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <div className={`w-2 h-2 rounded-full mt-2 ${
+                    task.priority === 'high' ? 'bg-red-500' : 
+                    task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                  }`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                    <p className="text-xs text-gray-500 capitalize">
+                      {task.type === 'insurance' ? 'Verificação de Convênio' :
+                       task.type === 'exams' ? 'Exames' : 
+                       task.type === 'consultation' ? 'Consulta' :
+                       task.type === 'billing' ? 'Faturamento' : 'Outros'}
+                    </p>
+                    {task.patient_name && (
+                      <p className="text-xs text-blue-600">{task.patient_name}</p>
+                    )}
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhuma tarefa pendente</p>
+                  <GradientButton
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDeleteTask(task.id)}
+                    title="Remover tarefa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </GradientButton>
                 </div>
-              )}
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full mt-4"
-              onClick={() => handleQuickAction('reports')}
-            >
-              Ver Todas as Tarefas
-            </Button>
-          </CardContent>
-        </Card>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Nenhuma tarefa pendente</p>
+              </div>
+            )}
+          </div>
+          
+          <GradientButton 
+            variant="outline" 
+            size="sm" 
+            className="w-full mt-4"
+            onClick={() => handleQuickAction('reports')}
+          >
+            Ver Todas as Tarefas
+          </GradientButton>
+        </ModernCard>
 
         {/* Revenue Snapshot */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Resumo Financeiro</CardTitle>
-                <CardDescription>
-                  Receita e despesas do mês atual
-                </CardDescription>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRefresh}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
+        <ModernCard variant="elevated" className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Resumo Financeiro</h3>
+              <p className="text-sm text-gray-500">Receita e despesas do mês atual</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="text-center p-4 border rounded-lg">
-                <p className="text-2xl font-bold text-green-600">
-                  R$ {(financialData?.monthlyRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-muted-foreground">Receita Mensal</p>
-              </div>
-              <div className="text-center p-4 border rounded-lg">
-                <p className="text-2xl font-bold text-red-600">
-                  R$ {(financialData?.monthlyExpenses || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-muted-foreground">Despesas</p>
-              </div>
-              <div className="text-center p-4 border rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">
-                  R$ {(financialData?.netProfit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-              </div>
+            <GradientButton 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </GradientButton>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="text-center p-4 border border-gray-200 rounded-lg bg-green-50">
+              <p className="text-2xl font-bold text-green-600">
+                R$ {(financialData?.monthlyRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Receita Mensal</p>
             </div>
-            
-            {/* Additional financial info */}
-            <div className="grid gap-4 md:grid-cols-2 mt-4">
-              <div className="text-center p-3 border rounded-lg bg-yellow-50">
-                <p className="text-lg font-bold text-yellow-600">
-                  R$ {(financialData?.pendingPayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-muted-foreground">Pagamentos Pendentes</p>
-              </div>
-              <div className="text-center p-3 border rounded-lg bg-red-50">
-                <p className="text-lg font-bold text-red-600">
-                  R$ {(financialData?.overduePayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-muted-foreground">Pagamentos Vencidos</p>
-              </div>
+            <div className="text-center p-4 border border-gray-200 rounded-lg bg-red-50">
+              <p className="text-2xl font-bold text-red-600">
+                R$ {(financialData?.monthlyExpenses || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Despesas</p>
             </div>
-            
-            <div className="mt-4">
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/financeiro">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Ver Relatório Completo
-                </Link>
-              </Button>
+            <div className="text-center p-4 border border-gray-200 rounded-lg bg-blue-50">
+              <p className="text-2xl font-bold text-blue-600">
+                R$ {(financialData?.netProfit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Lucro Líquido</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          
+          {/* Additional financial info */}
+          <div className="grid gap-4 md:grid-cols-2 mt-4">
+            <div className="text-center p-3 border border-gray-200 rounded-lg bg-yellow-50">
+              <p className="text-lg font-bold text-yellow-600">
+                R$ {(financialData?.pendingPayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Pagamentos Pendentes</p>
+            </div>
+            <div className="text-center p-3 border border-gray-200 rounded-lg bg-red-50">
+              <p className="text-lg font-bold text-red-600">
+                R$ {(financialData?.overduePayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Pagamentos Vencidos</p>
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <GradientButton variant="outline" size="sm" asChild>
+              <Link to="/financeiro">
+                <FileText className="w-4 h-4 mr-2" />
+                Ver Relatório Completo
+              </Link>
+            </GradientButton>
+          </div>
+        </ModernCard>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
-            <CardDescription>
-              Acesso rápido às principais funcionalidades
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button 
+        <ModernCard variant="elevated">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
+          <p className="text-sm text-gray-500 mb-4">Acesso rápido às principais funcionalidades</p>
+          
+          <div className="space-y-2">
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('checkin')}
             >
               <Users className="w-4 h-4 mr-2" />
               Check-in Paciente
-            </Button>
-            <Button 
+            </GradientButton>
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('consultation')}
             >
               <Stethoscope className="w-4 h-4 mr-2" />
               Iniciar Consulta
-            </Button>
-            <Button 
+            </GradientButton>
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('billing')}
             >
               <DollarSign className="w-4 h-4 mr-2" />
               Faturamento
-            </Button>
-            <Button 
+            </GradientButton>
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('reports')}
             >
               <FileText className="w-4 h-4 mr-2" />
               Relatórios
-            </Button>
-            <Button 
+            </GradientButton>
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('patients')}
             >
               <Users className="w-4 h-4 mr-2" />
               Lista de Pacientes
-            </Button>
-            <Button 
+            </GradientButton>
+            <GradientButton 
               variant="outline" 
-              className="w-full justify-start hover:bg-primary/10" 
+              className="w-full justify-start hover:bg-blue-50" 
               onClick={() => handleQuickAction('agenda')}
             >
               <Calendar className="w-4 h-4 mr-2" />
               Agenda Completa
-            </Button>
-          </CardContent>
-        </Card>
+            </GradientButton>
+          </div>
+        </ModernCard>
       </div>
-    </AppLayout>
+    </ModernLayout>
   );
 };
 

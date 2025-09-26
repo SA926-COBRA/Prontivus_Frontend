@@ -56,6 +56,7 @@ import SADTManagement from "./pages/SADTManagement";
 import FinancialDashboard from "./pages/FinancialDashboard";
 import TISSManagement from "./pages/TISSManagement";
 import StatisticalReportsDashboard from "./pages/StatisticalReportsDashboard";
+import IntegrationsDashboard from "./pages/IntegrationsDashboard";
 
 const queryClient = new QueryClient();
 
@@ -196,6 +197,17 @@ const App = () => (
                  <Route path="/statistical-reports/dashboards" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/statistical-reports/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/statistical-reports/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* Integrations Module Routes */}
+                 <Route path="/integrations" element={<RoleGuard allowedUserTypes={['staff']}><IntegrationsDashboard /></RoleGuard>} />
+                 <Route path="/integrations/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><IntegrationsDashboard /></RoleGuard>} />
+                 <Route path="/integrations/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/sessions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/authorizations" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/webhooks" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

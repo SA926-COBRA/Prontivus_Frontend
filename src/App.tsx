@@ -46,6 +46,8 @@ import SurgicalProcedures from "./pages/SurgicalProcedures";
 import SurgicalEstimates from "./pages/SurgicalEstimates";
 import ReportsDashboard from "./pages/ReportsDashboard";
 import ReportGeneration from "./pages/ReportGeneration";
+import VoiceRecording from "./pages/VoiceRecording";
+import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +139,15 @@ const App = () => (
           <Route path="/reports/my-reports" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           <Route path="/reports/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           <Route path="/reports/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          
+          {/* Voice Processing Module Routes */}
+          <Route path="/voice" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
+          <Route path="/voice/recording" element={<RoleGuard allowedUserTypes={['staff']}><VoiceRecording /></RoleGuard>} />
+          <Route path="/voice/sessions" element={<RoleGuard allowedUserTypes={['staff']}><VoiceSessionsDashboard /></RoleGuard>} />
+          <Route path="/voice/transcriptions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/voice/notes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/voice/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/voice/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

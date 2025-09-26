@@ -326,8 +326,8 @@ const Demo = () => {
       // Create inventory item in PostgreSQL
       const result = await apiService.createInventoryItem(newItem)
       if (result && result.id) {
-        toast.success('Item de estoque adicionado com sucesso!')
-        notifyLowStock(newItem.name, newItem.quantity)
+      toast.success('Item de estoque adicionado com sucesso!')
+      notifyLowStock(newItem.name, newItem.quantity)
         await loadDatabaseData() // Reload data from PostgreSQL
       } else {
         toast.error('Erro ao adicionar item de estoque')
@@ -467,7 +467,7 @@ const Demo = () => {
 
   const handleDelete = async (item: any) => {
     try {
-      switch (activeTab) {
+    switch (activeTab) {
         case 'patients': 
           await apiService.deletePatient(parseInt(item.id))
           toast.success('Paciente excluído com sucesso!')
@@ -727,8 +727,8 @@ const Demo = () => {
                         
                         // Here you would typically call an import API endpoint
                         // For now, we'll simulate the import
-                        toast.success('Arquivo importado com sucesso!')
-                        setShowImportModal(false)
+                      toast.success('Arquivo importado com sucesso!')
+                      setShowImportModal(false)
                         await loadDatabaseData() // Reload data from PostgreSQL
                       } catch (error) {
                         console.error('Error importing file:', error)

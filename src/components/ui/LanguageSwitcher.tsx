@@ -1,24 +1,32 @@
 /**
- * Language switcher component
+ * Enhanced Language Switcher Component
+ * Provides a user-friendly dropdown for switching between English and Brazilian Portuguese
  */
 
 import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useLanguageSwitcher } from '@/hooks/useLanguage';
-import { Globe } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Globe, Check } from 'lucide-react';
+import { useLanguageSwitcher, useTranslation } from '@/hooks/useLanguage';
 
 interface LanguageSwitcherProps {
-  className?: string;
-  showLabel?: boolean;
   variant?: 'default' | 'compact' | 'minimal';
+  showLabel?: boolean;
+  className?: string;
 }
 
 export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
-  className = '',
+  variant = 'default',
   showLabel = true,
-  variant = 'default'
+  className = ''
 }) => {
   const { currentLanguage, availableLanguages, changeLanguage } = useLanguageSwitcher();
+  const { t } = useTranslation();
 
   const handleLanguageChange = async (languageCode: string) => {
     try {
@@ -37,66 +45,114 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
     return current ? getLanguageDisplayName(current) : currentLanguage;
   };
 
+  const getLanguageFlag = (code: string) => {
+    switch (code) {
+      case 'pt-BR':
+        return '🇧🇷';
+      case 'en-US':
+        return '🇺🇸';
+      case 'es-ES':
+        return '🇪🇸';
+      default:
+        return '🌐';
+    }
+  };
+
   if (variant === 'minimal') {
     return (
-      <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-        <SelectTrigger className={`w-auto ${className}`}>
-          <Globe className="h-4 w-4" />
-        </SelectTrigger>
-        <SelectContent>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className={`w-8 h-8 p-0 ${className}`}>
+            <Globe className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
           {availableLanguages.map((language) => (
-            <SelectItem key={language.code} value={language.code}>
-              {getLanguageDisplayName(language)}
-            </SelectItem>
+            <DropdownMenuItem
+              key={language.code}
+              onClick={() => handleLanguageChange(language.code)}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <span>{getLanguageFlag(language.code)}</span>
+                <span>{getLanguageDisplayName(language)}</span>
+              </div>
+              {currentLanguage === language.code && (
+                <Check className="h-4 w-4" />
+              )}
+            </DropdownMenuItem>
           ))}
-        </SelectContent>
-      </Select>
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
   if (variant === 'compact') {
     return (
-      <div className={`flex items-center space-x-2 ${className}`}>
-        <Globe className="h-4 w-4 text-gray-500" />
-        <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-          <SelectTrigger className="w-auto">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableLanguages.map((language) => (
-              <SelectItem key={language.code} value={language.code}>
-                {getLanguageDisplayName(language)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className={`flex items-center space-x-2 ${className}`}>
+            <Globe className="h-4 w-4" />
+            <span className="text-sm">{getCurrentLanguageDisplayName()}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {availableLanguages.map((language) => (
+            <DropdownMenuItem
+              key={language.code}
+              onClick={() => handleLanguageChange(language.code)}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <span>{getLanguageFlag(language.code)}</span>
+                <span>{getLanguageDisplayName(language)}</span>
+              </div>
+              {currentLanguage === language.code && (
+                <Check className="h-4 w-4" />
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   }
 
   return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      <Globe className="h-4 w-4 text-gray-500" />
-      {showLabel && (
-        <span className="text-sm text-gray-600">
-          {availableLanguages.find(lang => lang.code === 'pt-BR')?.native_name === 'Português (Brasil)' 
-            ? 'Idioma:' 
-            : 'Language:'}
-        </span>
-      )}
-      <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-        <SelectTrigger className="w-auto">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {availableLanguages.map((language) => (
-            <SelectItem key={language.code} value={language.code}>
-              {getLanguageDisplayName(language)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className={`flex items-center space-x-2 ${className}`}>
+          <Globe className="h-4 w-4" />
+          {showLabel && (
+            <span className="text-sm text-gray-600">
+              {t('common.language', 'Language')}:
+            </span>
+          )}
+          <span className="text-sm font-medium">
+            {getCurrentLanguageDisplayName()}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {availableLanguages.map((language) => (
+          <DropdownMenuItem
+            key={language.code}
+            onClick={() => handleLanguageChange(language.code)}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-lg">{getLanguageFlag(language.code)}</span>
+              <div className="flex flex-col">
+                <span className="font-medium">{getLanguageDisplayName(language)}</span>
+                <span className="text-xs text-gray-500">{language.name}</span>
+              </div>
+            </div>
+            {currentLanguage === language.code && (
+              <Check className="h-4 w-4 text-blue-600" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

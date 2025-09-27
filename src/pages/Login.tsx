@@ -183,7 +183,7 @@ const Login = () => {
                 <Input
                   id="email_or_cpf"
                   type="text"
-                  placeholder="seu@email.com ou 000.000.000-00"
+                  placeholder={t('auth.login.emailPlaceholder', 'seu@email.com ou 000.000.000-00')}
                   {...register("email_or_cpf")}
                   disabled={isLoading}
                   className="pl-10"

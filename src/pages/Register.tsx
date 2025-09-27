@@ -173,12 +173,12 @@ const Register = ({ type = "staff" }: RegisterProps) => {
             {/* Common fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">Nome Completo</Label>
+                <Label htmlFor="full_name">{t('register.fullName', 'Nome Completo')}</Label>
                 <div className="relative">
                   <Input
                     id="full_name"
                     type="text"
-                    placeholder="Seu nome completo"
+                    placeholder={t('placeholder.fullName', 'Seu nome completo')}
                     {...form.register("full_name")}
                     disabled={isLoading}
                     className="pl-10"

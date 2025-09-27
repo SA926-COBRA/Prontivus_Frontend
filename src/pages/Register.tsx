@@ -28,7 +28,9 @@ const staffRegisterSchema = z.object({
     .regex(/\d/, "Senha deve conter pelo menos um número")
     .regex(/[!@#$%^&*(),.?":{}|<>]/, "Senha deve conter pelo menos um caractere especial"),
   confirm_password: z.string(),
-  role: z.enum(["doctor", "secretary", "finance", "admin"]),
+  role: z.enum(["doctor", "secretary", "finance", "admin", "nurse", "technician", "manager"]),
+  department: z.string().optional(),
+  position: z.string().optional(),
   crm: z.string().optional(),
   specialty: z.string().optional(),
   phone: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos"),
@@ -232,10 +234,13 @@ const Register = ({ type = "staff" }: RegisterProps) => {
                         <SelectValue placeholder="Selecione sua função" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="manager">Gerente</SelectItem>
                         <SelectItem value="doctor">Médico</SelectItem>
+                        <SelectItem value="nurse">Enfermeiro(a)</SelectItem>
+                        <SelectItem value="technician">Técnico</SelectItem>
                         <SelectItem value="secretary">Secretário(a)</SelectItem>
                         <SelectItem value="finance">Financeiro</SelectItem>
-                        <SelectItem value="admin">Administrador</SelectItem>
                       </SelectContent>
                     </Select>
                     {form.formState.errors.role && (
@@ -270,6 +275,36 @@ const Register = ({ type = "staff" }: RegisterProps) => {
                     />
                     {form.formState.errors.specialty && (
                       <p className="text-sm text-red-600">{form.formState.errors.specialty.message || 'Especialidade é obrigatória'}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Departamento</Label>
+                    <Input
+                      id="department"
+                      type="text"
+                      placeholder="Ex: Cardiologia, Emergência, Administração"
+                      {...form.register("department")}
+                      disabled={isLoading}
+                    />
+                    {form.formState.errors.department && (
+                      <p className="text-sm text-red-600">{form.formState.errors.department.message || 'Departamento é obrigatório'}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Cargo/Posição</Label>
+                    <Input
+                      id="position"
+                      type="text"
+                      placeholder="Ex: Enfermeiro Chefe, Técnico Sênior, Gerente"
+                      {...form.register("position")}
+                      disabled={isLoading}
+                    />
+                    {form.formState.errors.position && (
+                      <p className="text-sm text-red-600">{form.formState.errors.position.message || 'Cargo é obrigatório'}</p>
                     )}
                   </div>
                 </div>

@@ -83,9 +83,9 @@ const App = () => (
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           
-          {/* Protected Pages - Dashboard */}
-          <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-          <Route path="/basic-dashboard" element={<AuthGuard><BasicDashboard /></AuthGuard>} />
+          {/* Protected Pages - Dashboard (Staff Only) */}
+          <Route path="/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><Dashboard /></RoleGuard>} />
+          <Route path="/basic-dashboard" element={<RoleGuard allowedUserTypes={['staff']}><BasicDashboard /></RoleGuard>} />
           
           {/* Protected Pages - Secretaria (Staff Only) */}
           <Route path="/secretaria" element={<RoleGuard allowedUserTypes={['staff']}><Secretaria /></RoleGuard>} />
@@ -107,7 +107,7 @@ const App = () => (
           <Route path="/financeiro/faturamento" element={<RoleGuard allowedUserTypes={['staff']}><Faturamento /></RoleGuard>} />
           <Route path="/financeiro/contas" element={<RoleGuard allowedUserTypes={['staff']}><Financeiro /></RoleGuard>} />
           <Route path="/financeiro/relatorios" element={<RoleGuard allowedUserTypes={['staff']}><Financeiro /></RoleGuard>} />
-          <Route path="/financial" element={<AuthGuard><FinancialDashboard /></AuthGuard>} />
+          <Route path="/financial" element={<RoleGuard allowedUserTypes={['staff']}><FinancialDashboard /></RoleGuard>} />
           
           {/* Protected Pages - Estoque (Staff Only) */}
           <Route path="/estoque" element={<RoleGuard allowedUserTypes={['staff']}><Estoque /></RoleGuard>} />
@@ -242,11 +242,11 @@ const App = () => (
           <Route path="/paciente/financeiro" element={<RoleGuard allowedUserTypes={['patient']}><PatientApp /></RoleGuard>} />
           <Route path="/portal" element={<RoleGuard allowedUserTypes={['patient']}><Portal /></RoleGuard>} />
           
-          {/* Protected Pages - System */}
-          <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
-          <Route path="/configuracoes" element={<AuthGuard><Configuracoes /></AuthGuard>} />
-          <Route path="/suporte" element={<AuthGuard><Demo /></AuthGuard>} />
-          <Route path="/auditoria" element={<AuthGuard><Demo /></AuthGuard>} />
+          {/* Protected Pages - System (Staff Only) */}
+          <Route path="/profile" element={<RoleGuard allowedUserTypes={['staff']}><Profile /></RoleGuard>} />
+          <Route path="/configuracoes" element={<RoleGuard allowedUserTypes={['staff']}><Configuracoes /></RoleGuard>} />
+          <Route path="/suporte" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+          <Route path="/auditoria" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Legacy Routes (Staff Only) */}
           <Route path="/agenda" element={<RoleGuard allowedUserTypes={['staff']}><Agenda /></RoleGuard>} />

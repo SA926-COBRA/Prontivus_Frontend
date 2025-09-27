@@ -12,13 +12,11 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import LanguageSwitcher from "@/components/ui/LanguageSwitcher"
 import { useNavigate } from "react-router-dom"
 import { apiService } from "@/lib/api"
 import { useState, useEffect } from "react"
 import { useNotifications } from "@/hooks/useNotifications"
 import { BRANDING } from "@/config/branding"
-import { useTranslation } from "@/hooks/useLanguage"
 
 interface AppHeaderProps {
   title?: string
@@ -27,7 +25,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ title = "Dashboard", subtitle }: AppHeaderProps) {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [buttonLoading, setButtonLoading] = useState<{ [key: string]: boolean }>({});
@@ -254,9 +251,6 @@ export function AppHeader({ title = "Dashboard", subtitle }: AppHeaderProps) {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Language Switcher */}
-          <LanguageSwitcher variant="compact" />
 
           {/* User Menu */}
           <DropdownMenu>

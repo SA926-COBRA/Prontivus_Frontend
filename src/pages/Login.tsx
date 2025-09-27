@@ -12,7 +12,6 @@ import { Loader2, Eye, EyeOff, Shield, Mail } from 'lucide-react';
 import { apiService } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/utils';
 import { BRANDING } from '@/config/branding';
-import { useTranslation } from '@/hooks/useLanguage';
 
 const loginSchema = z.object({
   email_or_cpf: z.string()
@@ -67,7 +66,6 @@ const getRedirectPath = (userType: string, userRole: string): string => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -178,12 +176,12 @@ const Login = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email_or_cpf">{t('auth.login.email')}</Label>
+              <Label htmlFor="email_or_cpf">Email</Label>
               <div className="relative">
                 <Input
                   id="email_or_cpf"
                   type="text"
-                  placeholder={t('auth.login.emailPlaceholder', 'seu@email.com ou 000.000.000-00')}
+                  placeholder="seu@email.com ou 000.000.000-00"
                   {...register("email_or_cpf")}
                   disabled={isLoading}
                   className="pl-10"
@@ -196,7 +194,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">{t('auth.login.password')}</Label>
+              <Label htmlFor="password">Senha</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -227,14 +225,14 @@ const Login = () => {
                   disabled={isLoading}
                 />
                 <Label htmlFor="remember_me" className="text-sm">
-                  {t('auth.login.remember')}
+                  Lembrar de mim
                 </Label>
               </div>
               <Link
                 to="/auth/forgot-password"
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
-                {t('auth.login.forgot')}
+                Esqueceu a senha?
               </Link>
             </div>
 
@@ -244,7 +242,7 @@ const Login = () => {
               disabled={isLoading}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('auth.login.submit')}
+              Entrar
             </Button>
 
             <div className="text-center space-y-2">

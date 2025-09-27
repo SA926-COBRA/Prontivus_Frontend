@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LanguageProvider } from "@/hooks/useLanguage";
 import AuthGuard from "@/components/auth/AuthGuard";
 import RoleGuard from "@/components/auth/RoleGuard";
 import Index from "./pages/Index";
@@ -64,17 +63,16 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <LanguageProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter
-          future={{
-            // Opt-in to React Router v7 behavior early to avoid warnings
-            v7_startTransition: true,        // Wrap state updates in React.startTransition
-            v7_relativeSplatPath: true        // Change relative route resolution within Splat routes
-          }}
-        >
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter
+        future={{
+          // Opt-in to React Router v7 behavior early to avoid warnings
+          v7_startTransition: true,        // Wrap state updates in React.startTransition
+          v7_relativeSplatPath: true        // Change relative route resolution within Splat routes
+        }}
+      >
         <Routes>
           {/* Public Pages */}
           <Route path="/" element={<Landing />} />
@@ -262,7 +260,6 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-    </LanguageProvider>
   </QueryClientProvider>
 );
 

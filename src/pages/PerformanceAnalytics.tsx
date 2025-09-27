@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ChartBarIcon, 
-  TrendingUpIcon, 
+  ArrowTrendingUpIcon, 
   TrendingDownIcon,
-  TargetIcon,
+  AdjustmentsHorizontalIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -427,7 +427,7 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ className =
       {/* No Metric Selected */}
       {!selectedMetric && (
         <ModernCard className="p-12 text-center">
-          <TargetIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+          <AdjustmentsHorizontalIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Select a Metric</h3>
           <p className="text-gray-600">
             Choose a metric from the grid above to view detailed performance analysis and trends.

@@ -12,6 +12,7 @@ import { Loader2, Eye, EyeOff, Shield, Mail } from 'lucide-react';
 import { apiService } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/utils';
 import { BRANDING } from '@/config/branding';
+import { useTranslation } from '@/hooks/useLanguage';
 
 const loginSchema = z.object({
   email_or_cpf: z.string()
@@ -66,6 +67,7 @@ const getRedirectPath = (userType: string, userRole: string): string => {
 
 const Login = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -176,7 +178,7 @@ const Login = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email_or_cpf">Email ou CPF</Label>
+              <Label htmlFor="email_or_cpf">{t('auth.login.email')}</Label>
               <div className="relative">
                 <Input
                   id="email_or_cpf"
@@ -194,7 +196,7 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">{t('auth.login.password')}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -225,14 +227,14 @@ const Login = () => {
                   disabled={isLoading}
                 />
                 <Label htmlFor="remember_me" className="text-sm">
-                  Lembrar de mim
+                  {t('auth.login.remember')}
                 </Label>
               </div>
               <Link
                 to="/auth/forgot-password"
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
-                Esqueceu a senha?
+                {t('auth.login.forgot')}
               </Link>
             </div>
 
@@ -242,7 +244,7 @@ const Login = () => {
               disabled={isLoading}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Entrar
+              {t('auth.login.submit')}
             </Button>
 
             <div className="text-center space-y-2">

@@ -16,7 +16,7 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   SparklesIcon,
-  BrainIcon
+  CpuChipIcon
 } from '@heroicons/react/24/outline';
 import { ModernCard, GradientButton, AnimatedCounter, StatusIndicator, LoadingSpinner } from '../components/ui/ModernComponents';
 import { aiIntegrationApiService, AISummary, AIAnalytics } from '../lib/aiIntegrationApi';
@@ -389,7 +389,7 @@ const AIIntegrationDashboard: React.FC<AIIntegrationDashboardProps> = ({ classNa
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <BrainIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                 <p>No task type data available</p>
               </div>
             )}

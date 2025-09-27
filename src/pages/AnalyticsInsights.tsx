@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   LightBulbIcon, 
-  TrendingUpIcon, 
+  ArrowTrendingUpIcon, 
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -80,7 +80,7 @@ const AnalyticsInsights: React.FC<AnalyticsInsightsProps> = ({ className = '' })
   const getInsightIcon = (type: string) => {
     switch (type) {
       case 'trend':
-        return <TrendingUpIcon className="w-5 h-5 text-blue-500" />;
+        return <ArrowTrendingUpIcon className="w-5 h-5 text-blue-500" />;
       case 'anomaly':
         return <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />;
       case 'recommendation':

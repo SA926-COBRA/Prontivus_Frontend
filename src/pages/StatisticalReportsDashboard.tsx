@@ -10,7 +10,7 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  DownloadIcon,
+  ArrowDownTrayIcon,
   PlayIcon,
   StopIcon,
   Cog6ToothIcon,
@@ -194,7 +194,7 @@ const StatisticalReportsDashboard: React.FC<StatisticalReportsDashboardProps> = 
                 />
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
-                <DownloadIcon className="w-6 h-6 text-orange-600" />
+                <ArrowDownTrayIcon className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </ModernCard>
@@ -369,7 +369,7 @@ const StatisticalReportsDashboard: React.FC<StatisticalReportsDashboardProps> = 
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <DownloadIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <ArrowDownTrayIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                 <p>No access data available</p>
               </div>
             )}
@@ -471,7 +471,7 @@ const StatisticalReportsDashboard: React.FC<StatisticalReportsDashboardProps> = 
                       </button>
                       {report.status === 'completed' && (
                         <button className="p-2 text-gray-400 hover:text-blue-600">
-                          <DownloadIcon className="w-4 h-4" />
+                          <ArrowDownTrayIcon className="w-4 h-4" />
                         </button>
                       )}
                       {report.status === 'draft' && (

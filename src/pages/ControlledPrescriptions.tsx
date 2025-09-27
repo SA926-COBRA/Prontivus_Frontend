@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  PillsIcon, 
+  BeakerIcon, 
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -173,7 +173,7 @@ const ControlledPrescriptions: React.FC<ControlledPrescriptionsProps> = ({ class
                 />
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
-                <PillsIcon className="w-6 h-6 text-blue-600" />
+                <BeakerIcon className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </ModernCard>
@@ -360,7 +360,7 @@ const ControlledPrescriptions: React.FC<ControlledPrescriptionsProps> = ({ class
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <PillsIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <BeakerIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                 <p>No prescriptions found</p>
               </div>
             )}
@@ -504,7 +504,7 @@ const ControlledPrescriptions: React.FC<ControlledPrescriptionsProps> = ({ class
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <PillsIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <BeakerIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                 <p>No refills yet</p>
               </div>
             )}

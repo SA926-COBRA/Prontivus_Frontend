@@ -4,7 +4,7 @@ import {
   MicOff, 
   Play, 
   Pause, 
-  Stop, 
+  Square, 
   Upload, 
   Download,
   FileText,
@@ -352,7 +352,7 @@ const VoiceRecording: React.FC = () => {
                 {isProcessing ? (
                   <LoadingSpinner size="sm" />
                 ) : (
-                  <Stop className="h-4 w-4 mr-2" />
+                  <Square className="h-4 w-4 mr-2" />
                 )}
                 Finalizar Sessão
               </GradientButton>
@@ -471,10 +471,10 @@ const VoiceRecording: React.FC = () => {
                     
                     <GradientButton
                       variant="danger"
-                      onClick={stopRecording}
+                        onClick={stopRecording}
                       size="lg"
                     >
-                      <Stop className="h-6 w-6 mr-2" />
+                      <Square className="h-6 w-6 mr-2" />
                       Parar
                     </GradientButton>
                   </>

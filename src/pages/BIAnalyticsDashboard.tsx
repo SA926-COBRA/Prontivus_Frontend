@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  ChartBarIcon, 
-  TrendingUpIcon, 
-  TrendingDownIcon,
+import {
+  ChartBarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
   EyeIcon,
   CogIcon,
   PlusIcon,
-  RefreshIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { ModernCard, GradientButton, AnimatedCounter, ProgressRing, StatusIndicator, LoadingSpinner } from '../components/ui/ModernComponents';
 import { biAnalyticsApiService, BIInsightsSummary, DataQualitySummary, ClinicalMetric, MetricAlert, AnalyticsInsight } from '../lib/biAnalyticsApi';
@@ -106,7 +106,7 @@ const BIAnalyticsDashboard: React.FC<BIAnalyticsDashboardProps> = ({ className =
   const getInsightIcon = (type: string) => {
     switch (type) {
       case 'trend':
-        return <TrendingUpIcon className="w-5 h-5 text-blue-500" />;
+        return <ArrowTrendingUpIcon className="w-5 h-5 text-blue-500" />;
       case 'anomaly':
         return <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />;
       case 'recommendation':
@@ -183,7 +183,7 @@ const BIAnalyticsDashboard: React.FC<BIAnalyticsDashboardProps> = ({ className =
             }}
             className="flex items-center gap-2"
           >
-            <RefreshIcon className="w-4 h-4" />
+            <ArrowPathIcon className="w-4 h-4" />
             Refresh
           </GradientButton>
         </div>

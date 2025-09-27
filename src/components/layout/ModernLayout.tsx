@@ -13,7 +13,7 @@ import {
   Moon,
   Monitor
 } from 'lucide-react';
-import { ModernCard, GradientButton, NotificationBadge, StatusIndicator } from './ModernComponents';
+import { ModernCard, GradientButton, NotificationBadge, StatusIndicator } from '../ui/ModernComponents';
 
 interface ModernLayoutProps {
   children: React.ReactNode;

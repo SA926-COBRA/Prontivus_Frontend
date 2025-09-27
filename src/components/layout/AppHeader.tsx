@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import LanguageSwitcher from "@/components/ui/LanguageSwitcher"
 import { useNavigate } from "react-router-dom"
 import { apiService } from "@/lib/api"
 import { useState, useEffect } from "react"
@@ -251,6 +252,9 @@ export function AppHeader({ title = "Dashboard", subtitle }: AppHeaderProps) {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher variant="compact" />
 
           {/* User Menu */}
           <DropdownMenu>

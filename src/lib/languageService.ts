@@ -71,9 +71,9 @@ class LanguageService {
       this.availableLanguages = response.data;
       return this.availableLanguages;
     } catch (error) {
-      console.error('Failed to fetch available languages:', error);
+      console.warn('Failed to fetch available languages from API, using fallback:', error);
       // Return default languages if API fails
-      return [
+      const fallbackLanguages = [
         {
           id: 1,
           code: 'pt-BR',
@@ -95,6 +95,8 @@ class LanguageService {
           created_at: new Date().toISOString()
         }
       ];
+      this.availableLanguages = fallbackLanguages;
+      return fallbackLanguages;
     }
   }
 
@@ -106,8 +108,9 @@ class LanguageService {
       const response = await this.api.get(`/api/v1/language/translations/${languageCode}`);
       return response.data.translations;
     } catch (error) {
-      console.error(`Failed to fetch translations for ${languageCode}:`, error);
-      return {};
+      console.warn(`Failed to fetch translations for ${languageCode} from API, using fallback:`, error);
+      // Load fallback translations
+      return await this.getFallbackTranslations();
     }
   }
 

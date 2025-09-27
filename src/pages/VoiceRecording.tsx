@@ -19,8 +19,10 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, LoadingSpinner, ProgressRing } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { voiceApiService, VoiceSession, VoiceProcessingStatus } from '@/lib/voiceApi';
 
 const VoiceRecording: React.FC = () => {
@@ -29,599 +31,349 @@ const VoiceRecording: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentSession, setCurrentSession] = useState<VoiceSession | null>(null);
-  const [processingStatus, setProcessingStatus] = useState<VoiceProcessingStatus | null>(null);
+  const [sessions, setSessions] = useState<VoiceSession[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transcriptionText, setTranscriptionText] = useState<string>('');
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  
-  const [patientId, setPatientId] = useState<string>('');
-  const [clinicalContext, setClinicalContext] = useState<string>('');
-  const [medicalSpecialty, setMedicalSpecialty] = useState<string>('');
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [transcription, setTranscription] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    return () => {
-      // Cleanup on unmount
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    };
-  }, [stream, audioUrl]);
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      setIsLoading(true);
+      const data = await voiceApiService.getSessions();
+      setSessions(data);
+    } catch (err) {
+      setError('Erro ao carregar sessões');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const startRecording = async () => {
     try {
-      const recorder = await voiceApiService.startAudioRecording();
-      const mediaStream = recorder.stream;
-      
-      setMediaRecorder(recorder);
-      setStream(mediaStream);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      const chunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = (event) => {
+        chunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        setAudioBlob(blob);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
       setIsRecording(true);
-      setIsPaused(false);
       setRecordingTime(0);
-      
-      // Start timer
-      timerRef.current = setInterval(() => {
+
+      intervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
-      
-      // Start recording
-      recorder.start();
-      
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Erro ao iniciar gravação. Verifique as permissões do microfone.');
+
+    } catch (err) {
+      setError('Erro ao acessar microfone');
     }
   };
 
   const pauseRecording = () => {
-    if (mediaRecorder && isRecording) {
-      if (isPaused) {
-        mediaRecorder.resume();
-        setIsPaused(false);
-        // Resume timer
-        timerRef.current = setInterval(() => {
-          setRecordingTime(prev => prev + 1);
-        }, 1000);
-      } else {
-        mediaRecorder.pause();
-        setIsPaused(true);
-        // Pause timer
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.pause();
+      setIsPaused(true);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     }
   };
 
-  const stopRecording = async () => {
-    if (mediaRecorder && isRecording) {
-      try {
-        const blob = await voiceApiService.stopAudioRecording(mediaRecorder);
-        setAudioBlob(blob);
-        
-        // Create audio URL for playback
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        
-        // Stop timer
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-        
-        // Stop all tracks
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        
-        setIsRecording(false);
-        setIsPaused(false);
-        
-      } catch (error) {
-        console.error('Error stopping recording:', error);
-        alert('Erro ao parar gravação.');
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isPaused) {
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+      intervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsPaused(false);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     }
   };
 
-  const startVoiceSession = async () => {
-    if (!patientId) {
-      alert('Por favor, informe o ID do paciente.');
-      return;
-    }
-    
-    try {
-      const response = await voiceApiService.quickStartSession(
-        parseInt(patientId),
-        1, // Mock doctor ID - in real app, get from user context
-        clinicalContext
-      );
-      
-      setCurrentSession({
-        id: 0,
-        session_id: response.session_id,
-        patient_id: parseInt(patientId),
-        doctor_id: 1,
-        status: 'active',
-        start_time: new Date().toISOString(),
-        duration_seconds: 0,
-        audio_format: 'webm',
-        sample_rate: 16000,
-        channels: 1,
-        transcription_status: 'pending',
-        transcription_language: 'pt-BR',
-        session_type: 'consultation',
-        created_at: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      console.error('Error starting voice session:', error);
-      alert('Erro ao iniciar sessão de voz.');
+  const playAudio = () => {
+    if (audioRef.current && audioUrl) {
+      audioRef.current.play();
+      setIsPlaying(true);
     }
   };
 
-  const uploadAudio = async () => {
-    if (!audioBlob || !currentSession) {
-      alert('Nenhum áudio gravado ou sessão não iniciada.');
-      return;
+  const pauseAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
     }
-    
+  };
+
+  const uploadRecording = async () => {
+    if (!audioBlob) return;
+
     try {
       setIsProcessing(true);
-      
-      // Convert blob to file
-      const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
-      
-      await voiceApiService.uploadAudioToSession(currentSession.session_id, audioFile);
-      
-      alert('Áudio enviado com sucesso!');
-      
-    } catch (error) {
-      console.error('Error uploading audio:', error);
-      alert('Erro ao enviar áudio.');
+      const session = await voiceApiService.uploadRecording(audioBlob);
+      setCurrentSession(session);
+      setSessions(prev => [session, ...prev]);
+    } catch (err) {
+      setError('Erro ao fazer upload da gravação');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const transcribeAudio = async () => {
-    if (!currentSession) {
-      alert('Nenhuma sessão ativa.');
-      return;
-    }
-    
-    try {
-      setIsTranscribing(true);
-      
-      const response = await voiceApiService.quickTranscribe(currentSession.session_id);
-      
-      if (response.success) {
-        // Wait for transcription to complete
-        const session = await voiceApiService.waitForTranscriptionCompletion(currentSession.session_id);
-        setTranscriptionText(session.transcription_text || '');
-        setCurrentSession(session);
-      }
-      
-    } catch (error) {
-      console.error('Error transcribing audio:', error);
-      alert('Erro ao transcrever áudio.');
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
-  const generateClinicalNote = async () => {
-    if (!currentSession) {
-      alert('Nenhuma sessão ativa.');
-      return;
-    }
-    
+  const transcribeSession = async (sessionId: number) => {
     try {
       setIsProcessing(true);
-      
-      const response = await voiceApiService.quickGenerateNote(currentSession.session_id);
-      
-      if (response.success) {
-        alert('Nota clínica gerada com sucesso!');
-      }
-      
-    } catch (error) {
-      console.error('Error generating clinical note:', error);
-      alert('Erro ao gerar nota clínica.');
+      const result = await voiceApiService.transcribeSession(sessionId);
+      setTranscription(result.transcription);
+    } catch (err) {
+      setError('Erro ao transcrever sessão');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const endSession = async () => {
-    if (!currentSession) {
-      alert('Nenhuma sessão ativa.');
-      return;
-    }
-    
-    try {
-      setIsProcessing(true);
-      
-      const response = await voiceApiService.quickEndSession(
-        currentSession.session_id,
-        true, // auto transcribe
-        false // auto generate note
-      );
-      
-      if (response.success) {
-        alert('Sessão finalizada com sucesso!');
-        setCurrentSession(null);
-        setTranscriptionText('');
-        setAudioBlob(null);
-        setAudioUrl(null);
-        setRecordingTime(0);
-      }
-      
-    } catch (error) {
-      console.error('Error ending session:', error);
-      alert('Erro ao finalizar sessão.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const formatTime = (seconds: number): string => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const sidebarItems = [
-    {
-      id: 'recording',
-      label: 'Gravação',
-      icon: <Mic className="h-4 w-4" />,
-      href: '/voice/recording'
-    },
-    {
-      id: 'sessions',
-      label: 'Sessões',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/voice/sessions'
-    },
-    {
-      id: 'transcriptions',
-      label: 'Transcrições',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/voice/transcriptions'
-    },
-    {
-      id: 'notes',
-      label: 'Notas Clínicas',
-      icon: <Edit className="h-4 w-4" />,
-      href: '/voice/notes'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <BarChart3 className="h-4 w-4" />,
-      href: '/voice/analytics'
-    },
-    {
-      id: 'settings',
-      label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
-      href: '/voice/settings'
+  const getStatusBadge = (status: VoiceProcessingStatus) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Concluído</Badge>;
+      case 'processing':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Processando</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Falhou</Badge>;
+      default:
+        return <Badge variant="outline">Pendente</Badge>;
     }
-  ];
+  };
 
   return (
-    <ModernLayout
-      title="Gravação de Voz"
-      subtitle="Sistema de gravação e transcrição de notas clínicas"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem="recording"
-          onItemClick={() => {}}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Gravação de Voz"
-        subtitle="Grave e transcreva notas clínicas automaticamente"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Voz', href: '/voice' },
-          { label: 'Gravação' }
-        ]}
-        actions={
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Gravação de Voz</h1>
+            <p className="text-gray-600 mt-1">Sistema de gravação e transcrição de notas clínicas</p>
+          </div>
           <div className="flex items-center space-x-2">
             {currentSession && (
-              <GradientButton
-                variant="danger"
-                onClick={endSession}
+              <Button
+                variant="destructive"
+                onClick={() => setCurrentSession(null)}
                 disabled={isProcessing}
               >
-                {isProcessing ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <Square className="h-4 w-4 mr-2" />
-                )}
+                <Square className="h-4 w-4 mr-2" />
                 Finalizar Sessão
-              </GradientButton>
+              </Button>
             )}
           </div>
-        }
-      />
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recording Controls */}
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Controles de Gravação</h3>
-          
-          {/* Session Setup */}
-          {!currentSession && (
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ID do Paciente *
-                </label>
-                <input
-                  type="number"
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Digite o ID do paciente"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contexto Clínico
-                </label>
-                <textarea
-                  value={clinicalContext}
-                  onChange={(e) => setClinicalContext(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Descreva o contexto clínico da consulta"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Especialidade Médica
-                </label>
-                <select
-                  value={medicalSpecialty}
-                  onChange={(e) => setMedicalSpecialty(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Selecione uma especialidade</option>
-                  <option value="cardiologia">Cardiologia</option>
-                  <option value="ortopedia">Ortopedia</option>
-                  <option value="neurologia">Neurologia</option>
-                  <option value="oftalmologia">Oftalmologia</option>
-                  <option value="dermatologia">Dermatologia</option>
-                  <option value="ginecologia">Ginecologia</option>
-                  <option value="urologia">Urologia</option>
-                  <option value="pediatria">Pediatria</option>
-                  <option value="cirurgia_geral">Cirurgia Geral</option>
-                  <option value="plastica">Cirurgia Plástica</option>
-                </select>
-              </div>
-              
-              <GradientButton
-                variant="primary"
-                onClick={startVoiceSession}
-                disabled={!patientId}
-                className="w-full"
-              >
-                <Mic className="h-4 w-4 mr-2" />
-                Iniciar Sessão de Voz
-              </GradientButton>
-            </div>
-          )}
-          
-          {/* Recording Status */}
-          {currentSession && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h4 className="font-medium text-gray-900">Sessão Ativa</h4>
-                  <p className="text-sm text-gray-500">ID: {currentSession.session_id}</p>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recording Controls */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Controles de Gravação</CardTitle>
+              <CardDescription>Grave áudio para transcrição automática</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Recording Status */}
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center bg-blue-100">
+                  {isRecording ? (
+                    <Mic className="w-8 h-8 text-blue-600 animate-pulse" />
+                  ) : (
+                    <MicOff className="w-8 h-8 text-gray-400" />
+                  )}
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-blue-600">{formatTime(recordingTime)}</p>
-                  <p className="text-sm text-gray-500">Tempo de gravação</p>
-                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {isRecording ? (isPaused ? 'Pausado' : 'Gravando') : 'Pronto para Gravar'}
+                </p>
+                <p className="text-2xl font-mono text-blue-600 mt-2">
+                  {formatTime(recordingTime)}
+                </p>
               </div>
-              
-              <div className="flex items-center justify-center space-x-4">
+
+              {/* Recording Controls */}
+              <div className="flex justify-center space-x-4">
                 {!isRecording ? (
-                  <GradientButton
-                    variant="primary"
-                    onClick={startRecording}
-                    size="lg"
-                  >
-                    <Mic className="h-6 w-6 mr-2" />
+                  <Button onClick={startRecording} size="lg" className="bg-red-600 hover:bg-red-700">
+                    <Mic className="w-5 h-5 mr-2" />
                     Iniciar Gravação
-                  </GradientButton>
+                  </Button>
                 ) : (
                   <>
-                    <GradientButton
-                      variant="secondary"
-                      onClick={pauseRecording}
-                      size="lg"
-                    >
-                      {isPaused ? (
-                        <Play className="h-6 w-6 mr-2" />
-                      ) : (
-                        <Pause className="h-6 w-6 mr-2" />
-                      )}
-                      {isPaused ? 'Retomar' : 'Pausar'}
-                    </GradientButton>
-                    
-                    <GradientButton
-                      variant="danger"
-                        onClick={stopRecording}
-                      size="lg"
-                    >
-                      <Square className="h-6 w-6 mr-2" />
+                    {isPaused ? (
+                      <Button onClick={resumeRecording} size="lg" variant="outline">
+                        <Play className="w-5 h-5 mr-2" />
+                        Retomar
+                      </Button>
+                    ) : (
+                      <Button onClick={pauseRecording} size="lg" variant="outline">
+                        <Pause className="w-5 h-5 mr-2" />
+                        Pausar
+                      </Button>
+                    )}
+                    <Button onClick={stopRecording} size="lg" variant="destructive">
+                      <Square className="w-5 h-5 mr-2" />
                       Parar
-                    </GradientButton>
+                    </Button>
                   </>
                 )}
               </div>
-              
-              {isRecording && (
-                <div className="mt-4 text-center">
-                  <div className="inline-flex items-center space-x-2 text-red-600">
-                    <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-                    <span className="font-medium">Gravando...</span>
+
+              {/* Audio Player */}
+              {audioUrl && (
+                <div className="space-y-4">
+                  <div className="flex justify-center space-x-2">
+                    {isPlaying ? (
+                      <Button onClick={pauseAudio} variant="outline">
+                        <Pause className="w-4 h-4 mr-2" />
+                        Pausar
+                      </Button>
+                    ) : (
+                      <Button onClick={playAudio} variant="outline">
+                        <Play className="w-4 h-4 mr-2" />
+                        Reproduzir
+                      </Button>
+                    )}
+                    <Button onClick={uploadRecording} disabled={isProcessing}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {isProcessing ? 'Enviando...' : 'Enviar Gravação'}
+                    </Button>
                   </div>
+                  <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} />
                 </div>
               )}
-            </div>
-          )}
-          
-          {/* Audio Playback */}
-          {audioUrl && (
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-900 mb-2">Reprodução do Áudio</h4>
-              <audio
-                ref={audioRef}
-                src={audioUrl}
-                controls
-                className="w-full"
-              />
-            </div>
-          )}
-          
-          {/* Action Buttons */}
-          {audioBlob && currentSession && (
-            <div className="space-y-3">
-              <GradientButton
-                variant="outline"
-                onClick={uploadAudio}
-                disabled={isProcessing}
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-2" />
-                )}
-                Enviar Áudio
-              </GradientButton>
-              
-              <GradientButton
-                variant="primary"
-                onClick={transcribeAudio}
-                disabled={isTranscribing}
-                className="w-full"
-              >
-                {isTranscribing ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <FileText className="h-4 w-4 mr-2" />
-                )}
-                Transcrever Áudio
-              </GradientButton>
-              
-              <GradientButton
-                variant="secondary"
-                onClick={generateClinicalNote}
-                disabled={isProcessing || !transcriptionText}
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <Edit className="h-4 w-4 mr-2" />
-                )}
-                Gerar Nota Clínica
-              </GradientButton>
-            </div>
-          )}
-        </ModernCard>
+            </CardContent>
+          </Card>
+
+          {/* Sessions List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sessões de Gravação</CardTitle>
+              <CardDescription>Histórico de gravações e transcrições</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Carregando sessões...</p>
+                </div>
+              ) : sessions.length > 0 ? (
+                <div className="space-y-3">
+                  {sessions.map((session) => (
+                    <div key={session.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            Sessão {session.id}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(session.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(session.status)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => transcribeSession(session.id)}
+                          disabled={isProcessing || session.status === 'processing'}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Transcrever
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Nenhuma sessão encontrada</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Transcription Results */}
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Resultado da Transcrição</h3>
-          
-          {isTranscribing ? (
-            <div className="text-center py-8">
-              <LoadingSpinner size="lg" />
-              <p className="mt-4 text-gray-500">Transcrevendo áudio...</p>
-            </div>
-          ) : transcriptionText ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Texto Transcrito:</h4>
-                <p className="text-gray-700 whitespace-pre-wrap">{transcriptionText}</p>
+        {transcription && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transcrição</CardTitle>
+              <CardDescription>Resultado da transcrição automática</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-gray-800 whitespace-pre-wrap">{transcription}</p>
               </div>
-              
-              <div className="flex items-center space-x-2 text-green-600">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">Transcrição concluída</span>
+              <div className="flex justify-end mt-4 space-x-2">
+                <Button variant="outline" size="sm">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Baixar
+                </Button>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma transcrição disponível</p>
-              <p className="text-sm">Grave um áudio e clique em "Transcrever"</p>
-            </div>
-          )}
-        </ModernCard>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {/* Processing Status */}
-      {processingStatus && (
-        <div className="mt-8">
-          <ModernCard variant="elevated">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Status do Processamento</h3>
-            
-            <div className="flex items-center space-x-4">
-              <ProgressRing
-                progress={processingStatus.progress_percentage}
-                size={60}
-                color="#3b82f6"
-              />
-              
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">
-                  {processingStatus.current_step}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {processingStatus.progress_percentage}% concluído
-                </p>
-                {processingStatus.estimated_completion_time && (
-                  <p className="text-xs text-gray-400">
-                    Tempo estimado: {processingStatus.estimated_completion_time}s
-                  </p>
-                )}
-              </div>
-              
-              {processingStatus.error_message && (
-                <div className="flex items-center space-x-2 text-red-600">
-                  <XCircle className="h-5 w-5" />
-                  <span className="text-sm">{processingStatus.error_message}</span>
-                </div>
-              )}
-            </div>
-          </ModernCard>
-        </div>
-      )}
-    </ModernLayout>
+    </AppLayout>
   );
 };
 

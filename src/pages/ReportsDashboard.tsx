@@ -20,8 +20,11 @@ import {
   DollarSign,
   Activity
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, AnimatedCounter, ProgressRing, LoadingSpinner } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { reportsApiService, GeneratedReport, ReportTemplate, ReportDashboardStats } from '@/lib/reportsApi';
 
 const ReportsDashboard: React.FC = () => {
@@ -29,7 +32,10 @@ const ReportsDashboard: React.FC = () => {
   const [recentReports, setRecentReports] = useState<GeneratedReport[]>([]);
   const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('dashboard');
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedReports, setSelectedReports] = useState<number[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -38,427 +44,406 @@ const ReportsDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      const [stats, reports, templatesData] = await Promise.all([
-        reportsApiService.getReportDashboard(),
-        reportsApiService.getReports({ limit: 10 }),
-        reportsApiService.getTemplates({ is_active: true })
+      setError(null);
+
+      const [statsData, reportsData, templatesData] = await Promise.all([
+        reportsApiService.getDashboardStats(),
+        reportsApiService.getRecentReports(),
+        reportsApiService.getTemplates()
       ]);
 
-      setDashboardStats(stats);
-      setRecentReports(reports);
+      setDashboardStats(statsData);
+      setRecentReports(reportsData);
       setTemplates(templatesData);
-    } catch (error) {
-      console.error('Error loading reports dashboard data:', error);
+    } catch (err) {
+      setError('Erro ao carregar dados do dashboard de relatórios');
     } finally {
       setLoading(false);
     }
   };
 
-  const sidebarItems = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/reports'
-    },
-    {
-      id: 'templates',
-      label: 'Modelos',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/reports/templates'
-    },
-    {
-      id: 'generate',
-      label: 'Gerar Relatório',
-      icon: <Plus className="h-4 w-4" />,
-      href: '/reports/generate'
-    },
-    {
-      id: 'my-reports',
-      label: 'Meus Relatórios',
-      icon: <Eye className="h-4 w-4" />,
-      href: '/reports/my-reports'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <BarChart3 className="h-4 w-4" />,
-      href: '/reports/analytics'
-    },
-    {
-      id: 'settings',
-      label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
-      href: '/reports/settings'
-    }
-  ];
-
-  const mainStats = [
-    {
-      title: 'Total de Modelos',
-      value: <AnimatedCounter value={dashboardStats?.total_templates || 0} />,
-      change: 2,
-      changeType: 'positive' as const,
-      icon: <FileText className="h-6 w-6" />,
-      color: 'blue' as const
-    },
-    {
-      title: 'Relatórios Hoje',
-      value: <AnimatedCounter value={dashboardStats?.completed_reports_today || 0} />,
-      change: 15,
-      changeType: 'positive' as const,
-      icon: <CheckCircle className="h-6 w-6" />,
-      color: 'green' as const
-    },
-    {
-      title: 'Pendentes',
-      value: <AnimatedCounter value={dashboardStats?.pending_reports || 0} />,
-      change: -3,
-      changeType: 'negative' as const,
-      icon: <Clock className="h-6 w-6" />,
-      color: 'yellow' as const
-    },
-    {
-      title: 'Downloads Hoje',
-      value: <AnimatedCounter value={dashboardStats?.total_downloads_today || 0} />,
-      change: 8,
-      changeType: 'positive' as const,
-      icon: <Download className="h-6 w-6" />,
-      color: 'purple' as const
-    }
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'text-green-600 bg-green-50';
-      case 'generating':
-        return 'text-blue-600 bg-blue-50';
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'failed':
-        return 'text-red-600 bg-red-50';
-      case 'expired':
-        return 'text-gray-600 bg-gray-50';
-      default:
-        return 'text-blue-600 bg-blue-50';
-    }
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'generating':
-        return <Clock className="h-4 w-4" />;
-      case 'pending':
-        return <Clock className="h-4 w-4" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4" />;
-      case 'expired':
-        return <AlertTriangle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
   };
 
-  const getFormatIcon = (format: string) => {
-    switch (format) {
-      case 'pdf':
-        return <FileText className="h-4 w-4 text-red-500" />;
-      case 'excel':
-        return <FileText className="h-4 w-4 text-green-500" />;
-      case 'csv':
-        return <FileText className="h-4 w-4 text-blue-500" />;
-      case 'html':
-        return <FileText className="h-4 w-4 text-orange-500" />;
-      default:
-        return <FileText className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'clinical':
-        return 'Clínico';
-      case 'financial':
-        return 'Financeiro';
-      case 'administrative':
-        return 'Administrativo';
-      case 'commercial':
-        return 'Comercial';
-      case 'audit':
-        return 'Auditoria';
-      case 'custom':
-        return 'Personalizado';
-      default:
-        return type;
-    }
-  };
-
-  const handleDownloadReport = async (report: GeneratedReport) => {
+  const handleReportAction = async (reportId: number, action: string) => {
     try {
-      await reportsApiService.downloadReportFile(report);
-    } catch (error) {
-      console.error('Error downloading report:', error);
+      switch (action) {
+        case 'download':
+          await reportsApiService.downloadReport(reportId);
+          break;
+        case 'view':
+          await reportsApiService.viewReport(reportId);
+          break;
+        case 'delete':
+          await reportsApiService.deleteReport(reportId);
+          setRecentReports(prev => prev.filter(r => r.id !== reportId));
+          break;
+      }
+    } catch (err) {
+      setError(`Erro ao executar ação: ${action}`);
     }
   };
 
-  const handleDeleteReport = async (reportId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este relatório?')) {
-      try {
-        await reportsApiService.deleteReport(reportId);
-        await loadDashboardData();
-      } catch (error) {
-        console.error('Error deleting report:', error);
+  const handleBulkAction = async (action: string) => {
+    try {
+      for (const reportId of selectedReports) {
+        await handleReportAction(reportId, action);
       }
+      setSelectedReports([]);
+    } catch (err) {
+      setError(`Erro ao executar ação em lote: ${action}`);
     }
+  };
+
+  const filteredReports = recentReports.filter(report => {
+    const matchesSearch = report.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         report.template_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Concluído</Badge>;
+      case 'generating':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Gerando</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Falhou</Badge>;
+      default:
+        return <Badge variant="outline">Pendente</Badge>;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (loading) {
     return (
-      <ModernLayout title="Sistema de Relatórios">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dashboard de relatórios...</p>
+          </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <ModernLayout
-      title="Sistema de Relatórios"
-      subtitle="Geração e gestão de relatórios em PDF, Excel e outros formatos"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Dashboard de Relatórios"
-        subtitle="Visão geral do sistema de relatórios e geração de documentos"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Relatórios' }
-        ]}
-        actions={
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Sistema de Relatórios</h1>
+            <p className="text-gray-600 mt-1">Geração e gestão de relatórios médicos</p>
+          </div>
           <div className="flex items-center space-x-2">
-            <GradientButton variant="primary">
-              <Plus className="h-4 w-4 mr-2" />
-              Gerar Relatório
-            </GradientButton>
-            <GradientButton variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
-              Modelos
-            </GradientButton>
+            <Button onClick={loadDashboardData} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button asChild>
+              <a href="/relatorios/gerar">
+                <Plus className="w-4 h-4 mr-2" />
+                Gerar Relatório
+              </a>
+            </Button>
           </div>
-        }
-      />
+        </div>
 
-      {/* Main Stats Grid */}
-      <ModernStatsGrid stats={mainStats} className="mb-8" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Reports */}
-        <ModernCard variant="elevated">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Relatórios Recentes</h3>
-            <GradientButton variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              Ver Todos
-            </GradientButton>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
           </div>
-          
-          <div className="space-y-3">
-            {recentReports.length > 0 ? (
-              recentReports.map((report) => (
-                <div key={report.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${getStatusColor(report.status)}`}>
-                      {getStatusIcon(report.status)}
+        )}
+
+        {/* Stats Cards */}
+        {dashboardStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total de Relatórios</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalReports}</p>
+                    <p className="text-xs text-gray-500">Este mês</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Concluídos</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.completedReports}</p>
+                    <p className="text-xs text-gray-500">Gerados com sucesso</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Em Processamento</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.processingReports}</p>
+                    <p className="text-xs text-gray-500">Aguardando geração</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Templates</p>
+                    <p className="text-2xl font-bold text-gray-900">{templates.length}</p>
+                    <p className="text-xs text-gray-500">Modelos disponíveis</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Filters and Search */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtros e Busca</CardTitle>
+            <CardDescription>Encontre relatórios específicos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nome ou template..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('all')}
+                  size="sm"
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={statusFilter === 'completed' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('completed')}
+                  size="sm"
+                >
+                  Concluídos
+                </Button>
+                <Button
+                  variant={statusFilter === 'generating' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('generating')}
+                  size="sm"
+                >
+                  Processando
+                </Button>
+                <Button
+                  variant={statusFilter === 'failed' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('failed')}
+                  size="sm"
+                >
+                  Falhados
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Reports List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Relatórios Recentes</CardTitle>
+                <CardDescription>
+                  {filteredReports.length} de {recentReports.length} relatórios
+                </CardDescription>
+              </div>
+              {selectedReports.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('download')}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Baixar Selecionados
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleBulkAction('delete')}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir Selecionados
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredReports.length > 0 ? (
+              <div className="space-y-3">
+                {filteredReports.map((report) => (
+                  <div key={report.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedReports.includes(report.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedReports(prev => [...prev, report.id]);
+                          } else {
+                            setSelectedReports(prev => prev.filter(id => id !== report.id));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {report.name || `Relatório ${report.id}`}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {report.template_name} • {formatDate(report.created_at)}
+                        </p>
+                        {report.file_size && (
+                          <p className="text-xs text-gray-400">
+                            Tamanho: {formatFileSize(report.file_size)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {getFormatIcon(report.report_format)}
-                      <div>
-                        <p className="font-medium text-gray-900">{report.report_number}</p>
-                        <p className="text-sm text-gray-500">{getTypeLabel(report.report_type)}</p>
+                      {getStatusBadge(report.status)}
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReportAction(report.id, 'view')}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReportAction(report.id, 'download')}
+                          disabled={report.status !== 'completed'}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReportAction(report.id, 'delete')}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {report.status === 'completed' && (
-                      <GradientButton
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadReport(report)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </GradientButton>
-                    )}
-                    <GradientButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {/* View report details */}}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </GradientButton>
-                    <GradientButton
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleDeleteReport(report.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </GradientButton>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum relatório recente</p>
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Nenhum relatório encontrado</p>
+                {searchTerm && (
+                  <p className="text-sm mt-2">Tente ajustar os filtros de busca</p>
+                )}
               </div>
             )}
-          </div>
-        </ModernCard>
+          </CardContent>
+        </Card>
 
-        {/* Report Templates */}
-        <ModernCard variant="elevated">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Modelos Disponíveis</h3>
-            <GradientButton variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Gerenciar
-            </GradientButton>
-          </div>
-          
-          <div className="space-y-3">
-            {templates.length > 0 ? (
-              templates.slice(0, 5).map((template) => (
-                <div key={template.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-blue-50">
-                      <FileText className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{template.name}</p>
-                      <p className="text-sm text-gray-500">{getTypeLabel(template.report_type)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <GradientButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {/* Generate report with this template */}}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </GradientButton>
-                    <GradientButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {/* View template details */}}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </GradientButton>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum modelo disponível</p>
-              </div>
-            )}
-          </div>
-        </ModernCard>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-8">
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Ações Rápidas</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <GradientButton
-              variant="outline"
-              className="h-20 flex-col space-y-2"
-              onClick={() => {/* Generate clinical report */}}
-            >
-              <Activity className="h-6 w-6" />
-              <span>Relatório Clínico</span>
-            </GradientButton>
-            
-            <GradientButton
-              variant="outline"
-              className="h-20 flex-col space-y-2"
-              onClick={() => {/* Generate financial report */}}
-            >
-              <DollarSign className="h-6 w-6" />
-              <span>Relatório Financeiro</span>
-            </GradientButton>
-            
-            <GradientButton
-              variant="outline"
-              className="h-20 flex-col space-y-2"
-              onClick={() => {/* Generate commercial report */}}
-            >
-              <TrendingUp className="h-6 w-6" />
-              <span>Relatório Comercial</span>
-            </GradientButton>
-            
-            <GradientButton
-              variant="outline"
-              className="h-20 flex-col space-y-2"
-              onClick={() => {/* Generate administrative report */}}
-            >
-              <Users className="h-6 w-6" />
-              <span>Relatório Administrativo</span>
-            </GradientButton>
-          </div>
-        </ModernCard>
-      </div>
-
-      {/* Performance Metrics */}
-      <div className="mt-8">
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Métricas de Performance</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <ProgressRing
-                progress={85}
-                size={120}
-                color="#10b981"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Taxa de Sucesso</h4>
-              <p className="text-sm text-gray-500">Geração de relatórios</p>
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ações Rápidas</CardTitle>
+            <CardDescription>Acesso rápido às principais funcionalidades de relatórios</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/relatorios/gerar">
+                  <Plus className="w-6 h-6 mb-2" />
+                  Gerar Relatório
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/relatorios/templates">
+                  <Settings className="w-6 h-6 mb-2" />
+                  Gerenciar Templates
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/relatorios/agendados">
+                  <Calendar className="w-6 h-6 mb-2" />
+                  Relatórios Agendados
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/relatorios/estatisticas">
+                  <PieChart className="w-6 h-6 mb-2" />
+                  Estatísticas
+                </a>
+              </Button>
             </div>
-            <div className="text-center">
-              <ProgressRing
-                progress={92}
-                size={120}
-                color="#3b82f6"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Satisfação</h4>
-              <p className="text-sm text-gray-500">Qualidade dos relatórios</p>
-            </div>
-            <div className="text-center">
-              <ProgressRing
-                progress={78}
-                size={120}
-                color="#f59e0b"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Eficiência</h4>
-              <p className="text-sm text-gray-500">Tempo de geração</p>
-            </div>
-          </div>
-        </ModernCard>
+          </CardContent>
+        </Card>
       </div>
-    </ModernLayout>
+    </AppLayout>
   );
 };
 

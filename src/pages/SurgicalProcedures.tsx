@@ -13,18 +13,22 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, LoadingSpinner } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { commercialApiService, SurgicalProcedure } from '@/lib/commercialApi';
 
 const SurgicalProcedures: React.FC = () => {
   const [procedures, setProcedures] = useState<SurgicalProcedure[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('');
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('procedures');
+  const [selectedProcedures, setSelectedProcedures] = useState<number[]>([]);
 
   useEffect(() => {
     loadProcedures();
@@ -33,344 +37,459 @@ const SurgicalProcedures: React.FC = () => {
   const loadProcedures = async () => {
     try {
       setLoading(true);
-      const data = await commercialApiService.getProcedures({
-        search: searchTerm || undefined,
-        specialty: selectedSpecialty || undefined,
-        procedure_type: selectedType || undefined,
-        is_active: showInactive ? undefined : true
-      });
+      setError(null);
+      const data = await commercialApiService.getProcedures();
       setProcedures(data);
-    } catch (error) {
-      console.error('Error loading procedures:', error);
+    } catch (err) {
+      setError('Erro ao carregar procedimentos cirúrgicos');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadProcedures();
-  }, [searchTerm, selectedSpecialty, selectedType, showInactive]);
-
-  const sidebarItems = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial'
-    },
-    {
-      id: 'procedures',
-      label: 'Procedimentos',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial/procedures'
-    },
-    {
-      id: 'estimates',
-      label: 'Orçamentos',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial/estimates'
-    },
-    {
-      id: 'contracts',
-      label: 'Contratos',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial/contracts'
-    },
-    {
-      id: 'packages',
-      label: 'Pacotes',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial/packages'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial/analytics'
-    }
-  ];
-
-  const procedureTypes = [
-    { value: '', label: 'Todos os tipos' },
-    { value: 'surgical', label: 'Cirúrgico' },
-    { value: 'diagnostic', label: 'Diagnóstico' },
-    { value: 'therapeutic', label: 'Terapêutico' },
-    { value: 'cosmetic', label: 'Cosmético' },
-    { value: 'emergency', label: 'Emergência' }
-  ];
-
-  const specialties = [
-    'Cardiologia',
-    'Ortopedia',
-    'Neurologia',
-    'Oftalmologia',
-    'Dermatologia',
-    'Ginecologia',
-    'Urologia',
-    'Pediatria',
-    'Cirurgia Geral',
-    'Plástica'
-  ];
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'surgical':
-        return 'text-red-600 bg-red-50';
-      case 'diagnostic':
-        return 'text-blue-600 bg-blue-50';
-      case 'therapeutic':
-        return 'text-green-600 bg-green-50';
-      case 'cosmetic':
-        return 'text-purple-600 bg-purple-50';
-      case 'emergency':
-        return 'text-orange-600 bg-orange-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
-    }
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'surgical':
-        return 'Cirúrgico';
-      case 'diagnostic':
-        return 'Diagnóstico';
-      case 'therapeutic':
-        return 'Terapêutico';
-      case 'cosmetic':
-        return 'Cosmético';
-      case 'emergency':
-        return 'Emergência';
-      default:
-        return type;
-    }
+  const handleSpecialtyFilter = (specialty: string) => {
+    setSelectedSpecialty(specialty);
   };
 
-  const getComplexityStars = (level?: number) => {
-    if (!level) return '';
-    return '★'.repeat(level) + '☆'.repeat(5 - level);
+  const handleTypeFilter = (type: string) => {
+    setSelectedType(type);
   };
 
-  const handleDeleteProcedure = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja desativar este procedimento?')) {
-      try {
-        await commercialApiService.deleteProcedure(id);
-        await loadProcedures();
-      } catch (error) {
-        console.error('Error deleting procedure:', error);
+  const handleProcedureAction = async (procedureId: number, action: string) => {
+    try {
+      switch (action) {
+        case 'view':
+          window.location.href = `/comercial/procedimento/${procedureId}`;
+          break;
+        case 'edit':
+          window.location.href = `/comercial/procedimento/${procedureId}/editar`;
+          break;
+        case 'delete':
+          await commercialApiService.deleteProcedure(procedureId);
+          setProcedures(prev => prev.filter(p => p.id !== procedureId));
+          break;
+        case 'toggle_status':
+          const procedure = procedures.find(p => p.id === procedureId);
+          if (procedure) {
+            await commercialApiService.updateProcedure(procedureId, {
+              ...procedure,
+              is_active: !procedure.is_active
+            });
+            await loadProcedures();
+          }
+          break;
       }
+    } catch (err) {
+      setError(`Erro ao executar ação: ${action}`);
     }
   };
+
+  const handleBulkAction = async (action: string) => {
+    try {
+      for (const procedureId of selectedProcedures) {
+        await handleProcedureAction(procedureId, action);
+      }
+      setSelectedProcedures([]);
+    } catch (err) {
+      setError(`Erro ao executar ação em lote: ${action}`);
+    }
+  };
+
+  const filteredProcedures = procedures.filter(procedure => {
+    const matchesSearch = procedure.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         procedure.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         procedure.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSpecialty = selectedSpecialty === 'all' || procedure.specialty === selectedSpecialty;
+    const matchesType = selectedType === 'all' || procedure.type === selectedType;
+    const matchesStatus = showInactive || procedure.is_active;
+    return matchesSearch && matchesSpecialty && matchesType && matchesStatus;
+  });
+
+  const getStatusBadge = (isActive: boolean) => {
+    return isActive ? (
+      <Badge variant="default" className="bg-green-100 text-green-800">Ativo</Badge>
+    ) : (
+      <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inativo</Badge>
+    );
+  };
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case 'major':
+        return <Badge variant="destructive">Maior</Badge>;
+      case 'minor':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Menor</Badge>;
+      case 'diagnostic':
+        return <Badge variant="outline">Diagnóstico</Badge>;
+      default:
+        return <Badge variant="outline">Geral</Badge>;
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}min`;
+    }
+    return `${mins}min`;
+  };
+
+  const getStats = () => {
+    const total = procedures.length;
+    const active = procedures.filter(p => p.is_active).length;
+    const inactive = procedures.filter(p => !p.is_active).length;
+    const specialties = [...new Set(procedures.map(p => p.specialty))].length;
+    const avgDuration = procedures.reduce((sum, p) => sum + (p.estimated_duration || 0), 0) / total;
+
+    return { total, active, inactive, specialties, avgDuration };
+  };
+
+  const stats = getStats();
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando procedimentos cirúrgicos...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
-    <ModernLayout
-      title="Procedimentos Cirúrgicos"
-      subtitle="Gestão do catálogo de procedimentos cirúrgicos"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Procedimentos Cirúrgicos"
-        subtitle="Catálogo completo de procedimentos disponíveis"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Comercial', href: '/commercial' },
-          { label: 'Procedimentos' }
-        ]}
-        actions={
-          <GradientButton variant="primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Procedimento
-          </GradientButton>
-        }
-      />
-
-      {/* Filters */}
-      <ModernCard variant="elevated" className="mb-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Pesquisar procedimentos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
-              />
-            </div>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Procedimentos Cirúrgicos</h1>
+            <p className="text-gray-600 mt-1">Gestão de procedimentos e códigos cirúrgicos</p>
           </div>
+          <div className="flex items-center space-x-2">
+            <Button onClick={loadProcedures} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button asChild>
+              <a href="/comercial/procedimento/novo">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Procedimento
+              </a>
+            </Button>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Activity className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs text-gray-500">Procedimentos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {procedureTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={selectedSpecialty}
-            onChange={(e) => setSelectedSpecialty(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todas as especialidades</option>
-            {specialties.map((specialty) => (
-              <option key={specialty} value={specialty}>
-                {specialty}
-              </option>
-            ))}
-          </select>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">Mostrar inativos</span>
-          </label>
-        </div>
-      </ModernCard>
-
-      {/* Procedures Grid */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {procedures.map((procedure) => (
-            <ModernCard key={procedure.id} variant="elevated" hover>
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-sm font-medium text-gray-500">{procedure.code}</span>
-                    {procedure.is_active ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{procedure.name}</h3>
-                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(procedure.procedure_type)}`}>
-                    {getTypeLabel(procedure.procedure_type)}
-                  </div>
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Ativos</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+                  <p className="text-xs text-gray-500">Disponíveis</p>
                 </div>
               </div>
-
-              {procedure.description && (
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{procedure.description}</p>
-              )}
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Especialidade:</span>
-                  <span className="font-medium">{procedure.specialty || 'N/A'}</span>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <XCircle className="w-6 h-6 text-gray-600" />
                 </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Preço base:</span>
-                  <span className="font-medium text-green-600">
-                    R$ {procedure.base_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-
-                {procedure.duration_minutes && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Duração:</span>
-                    <span className="font-medium">{procedure.duration_minutes} min</span>
-                  </div>
-                )}
-
-                {procedure.complexity_level && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Complexidade:</span>
-                    <span className="font-medium text-yellow-600">
-                      {getComplexityStars(procedure.complexity_level)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Anestesia:</span>
-                  <span className="font-medium">
-                    {procedure.requires_anesthesia ? 'Sim' : 'Não'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Internação:</span>
-                  <span className="font-medium">
-                    {procedure.requires_hospitalization ? 'Sim' : 'Não'}
-                  </span>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Inativos</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.inactive}</p>
+                  <p className="text-xs text-gray-500">Desabilitados</p>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="flex items-center space-x-2">
-                  <GradientButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {/* View procedure */}}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </GradientButton>
-                  <GradientButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {/* Edit procedure */}}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </GradientButton>
-                  <GradientButton
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDeleteProcedure(procedure.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </GradientButton>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Filter className="w-6 h-6 text-purple-600" />
                 </div>
-                
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">
-                    Criado em {new Date(procedure.created_at).toLocaleDateString('pt-BR')}
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Especialidades</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.specialties}</p>
+                  <p className="text-xs text-gray-500">Categorias</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Duração Média</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {formatDuration(Math.round(stats.avgDuration))}
                   </p>
+                  <p className="text-xs text-gray-500">Por procedimento</p>
                 </div>
               </div>
-            </ModernCard>
-          ))}
+            </CardContent>
+          </Card>
         </div>
-      )}
 
-      {!loading && procedures.length === 0 && (
-        <ModernCard variant="elevated">
-          <div className="text-center py-12">
-            <Activity className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum procedimento encontrado</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || selectedSpecialty || selectedType
-                ? 'Tente ajustar os filtros de pesquisa'
-                : 'Comece criando seu primeiro procedimento'}
-            </p>
-            <GradientButton variant="primary">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Procedimento
-            </GradientButton>
-          </div>
-        </ModernCard>
-      )}
-    </ModernLayout>
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtros e Busca</CardTitle>
+            <CardDescription>Encontre procedimentos específicos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nome, código ou descrição..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedSpecialty === 'all' ? 'default' : 'outline'}
+                  onClick={() => handleSpecialtyFilter('all')}
+                  size="sm"
+                >
+                  Todas
+                </Button>
+                <Button
+                  variant={selectedSpecialty === 'cardiology' ? 'default' : 'outline'}
+                  onClick={() => handleSpecialtyFilter('cardiology')}
+                  size="sm"
+                >
+                  Cardiologia
+                </Button>
+                <Button
+                  variant={selectedSpecialty === 'orthopedics' ? 'default' : 'outline'}
+                  onClick={() => handleSpecialtyFilter('orthopedics')}
+                  size="sm"
+                >
+                  Ortopedia
+                </Button>
+                <Button
+                  variant={selectedSpecialty === 'neurology' ? 'default' : 'outline'}
+                  onClick={() => handleSpecialtyFilter('neurology')}
+                  size="sm"
+                >
+                  Neurologia
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={selectedType === 'all' ? 'default' : 'outline'}
+                  onClick={() => handleTypeFilter('all')}
+                  size="sm"
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={selectedType === 'major' ? 'default' : 'outline'}
+                  onClick={() => handleTypeFilter('major')}
+                  size="sm"
+                >
+                  Maior
+                </Button>
+                <Button
+                  variant={selectedType === 'minor' ? 'default' : 'outline'}
+                  onClick={() => handleTypeFilter('minor')}
+                  size="sm"
+                >
+                  Menor
+                </Button>
+                <Button
+                  variant={showInactive ? 'default' : 'outline'}
+                  onClick={() => setShowInactive(!showInactive)}
+                  size="sm"
+                >
+                  Inativos
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Procedures List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Procedimentos Cirúrgicos</CardTitle>
+                <CardDescription>
+                  {filteredProcedures.length} de {procedures.length} procedimentos
+                </CardDescription>
+              </div>
+              {selectedProcedures.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('toggle_status')}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Alterar Status
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleBulkAction('delete')}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir Selecionados
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredProcedures.length > 0 ? (
+              <div className="space-y-3">
+                {filteredProcedures.map((procedure) => (
+                  <div key={procedure.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedProcedures.includes(procedure.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedProcedures(prev => [...prev, procedure.id]);
+                          } else {
+                            setSelectedProcedures(prev => prev.filter(id => id !== procedure.id));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {procedure.name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Código: {procedure.code} • {procedure.specialty}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Duração: {formatDuration(procedure.estimated_duration || 0)} • 
+                          Valor: {formatCurrency(procedure.base_price || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-right">
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(procedure.is_active)}
+                          {getTypeBadge(procedure.type || 'general')}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleProcedureAction(procedure.id, 'view')}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleProcedureAction(procedure.id, 'edit')}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleProcedureAction(procedure.id, 'toggle_status')}
+                          className={procedure.is_active ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}
+                        >
+                          {procedure.is_active ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleProcedureAction(procedure.id, 'delete')}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Activity className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Nenhum procedimento encontrado</p>
+                {searchTerm && (
+                  <p className="text-sm mt-2">Tente ajustar os filtros de busca</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
 };
 

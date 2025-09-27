@@ -17,8 +17,10 @@ import {
   PieChart,
   Activity
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, AnimatedCounter, ProgressRing } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { commercialApiService, CommercialDashboardStats, SurgicalEstimate, SurgicalContract } from '@/lib/commercialApi';
 
 const CommercialDashboard: React.FC = () => {
@@ -26,7 +28,7 @@ const CommercialDashboard: React.FC = () => {
   const [recentEstimates, setRecentEstimates] = useState<SurgicalEstimate[]>([]);
   const [recentContracts, setRecentContracts] = useState<SurgicalContract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('dashboard');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -35,331 +37,304 @@ const CommercialDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      const [stats, estimates, contracts] = await Promise.all([
-        commercialApiService.getCommercialDashboard(),
-        commercialApiService.getActiveEstimates(),
-        commercialApiService.getPendingContracts()
+      setError(null);
+
+      const [statsData, estimatesData, contractsData] = await Promise.all([
+        commercialApiService.getDashboardStats(),
+        commercialApiService.getRecentEstimates(),
+        commercialApiService.getRecentContracts()
       ]);
 
-      setDashboardStats(stats);
-      setRecentEstimates(estimates.slice(0, 5));
-      setRecentContracts(contracts.slice(0, 5));
-    } catch (error) {
-      console.error('Error loading commercial dashboard data:', error);
+      setDashboardStats(statsData);
+      setRecentEstimates(estimatesData);
+      setRecentContracts(contractsData);
+    } catch (err) {
+      setError('Erro ao carregar dados do dashboard comercial');
     } finally {
       setLoading(false);
     }
   };
 
-  const sidebarItems = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/commercial'
-    },
-    {
-      id: 'procedures',
-      label: 'Procedimentos',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/commercial/procedures'
-    },
-    {
-      id: 'estimates',
-      label: 'Orçamentos',
-      icon: <TrendingUp className="h-4 w-4" />,
-      href: '/commercial/estimates',
-      badge: recentEstimates.length
-    },
-    {
-      id: 'contracts',
-      label: 'Contratos',
-      icon: <Users className="h-4 w-4" />,
-      href: '/commercial/contracts',
-      badge: recentContracts.length
-    },
-    {
-      id: 'packages',
-      label: 'Pacotes',
-      icon: <BarChart3 className="h-4 w-4" />,
-      href: '/commercial/packages'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <PieChart className="h-4 w-4" />,
-      href: '/commercial/analytics'
-    }
-  ];
-
-  const mainStats = [
-    {
-      title: 'Total de Procedimentos',
-      value: <AnimatedCounter value={dashboardStats?.total_procedures || 0} />,
-      change: 8,
-      changeType: 'positive' as const,
-      icon: <FileText className="h-6 w-6" />,
-      color: 'blue' as const
-    },
-    {
-      title: 'Orçamentos Ativos',
-      value: <AnimatedCounter value={dashboardStats?.active_estimates || 0} />,
-      change: -2,
-      changeType: 'negative' as const,
-      icon: <TrendingUp className="h-6 w-6" />,
-      color: 'green' as const
-    },
-    {
-      title: 'Contratos Pendentes',
-      value: <AnimatedCounter value={dashboardStats?.pending_contracts || 0} />,
-      change: 5,
-      changeType: 'positive' as const,
-      icon: <Users className="h-6 w-6" />,
-      color: 'yellow' as const
-    },
-    {
-      title: 'Receita Mensal',
-      value: `R$ ${(dashboardStats?.monthly_revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      change: 12,
-      changeType: 'positive' as const,
-      icon: <DollarSign className="h-6 w-6" />,
-      color: 'purple' as const
-    }
-  ];
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-      case 'active':
-      case 'completed':
-        return 'text-green-600 bg-green-50';
+        return <Badge variant="default" className="bg-green-100 text-green-800">Aprovado</Badge>;
       case 'pending':
-      case 'pending_signature':
-        return 'text-yellow-600 bg-yellow-50';
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
       case 'rejected':
-      case 'cancelled':
-        return 'text-red-600 bg-red-50';
-      case 'draft':
-        return 'text-gray-600 bg-gray-50';
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      case 'signed':
+        return <Badge variant="default" className="bg-blue-100 text-blue-800">Assinado</Badge>;
       default:
-        return 'text-blue-600 bg-blue-50';
+        return <Badge variant="outline">Desconhecido</Badge>;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved':
-      case 'active':
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'pending':
-      case 'pending_signature':
-        return <Clock className="h-4 w-4" />;
-      case 'rejected':
-      case 'cancelled':
-        return <XCircle className="h-4 w-4" />;
-      case 'draft':
-        return <Edit className="h-4 w-4" />;
-      default:
-        return <AlertTriangle className="h-4 w-4" />;
-    }
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
   if (loading) {
     return (
-      <ModernLayout title="Módulo Comercial">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-500">Carregando dados comerciais...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dashboard comercial...</p>
           </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <ModernLayout
-      title="Módulo Comercial"
-      subtitle="Gestão de procedimentos cirúrgicos, orçamentos e contratos"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Dashboard Comercial"
-        subtitle="Visão geral do módulo comercial - Procedimentos cirúrgicos e contratos"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Comercial' }
-        ]}
-        actions={
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Módulo Comercial</h1>
+            <p className="text-gray-600 mt-1">Gestão de orçamentos e contratos cirúrgicos</p>
+          </div>
           <div className="flex items-center space-x-2">
-            <GradientButton variant="primary">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Orçamento
-            </GradientButton>
-            <GradientButton variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Novo Procedimento
-            </GradientButton>
+            <Button onClick={loadDashboardData} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+            <Button asChild>
+              <a href="/comercial/orcamento/novo">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Orçamento
+              </a>
+            </Button>
           </div>
-        }
-      />
-
-      {/* Main Stats Grid */}
-      <ModernStatsGrid stats={mainStats} className="mb-8" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Estimates */}
-        <ModernCard variant="elevated">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Orçamentos Recentes</h3>
-            <GradientButton variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              Ver Todos
-            </GradientButton>
-          </div>
-          
-          <div className="space-y-3">
-            {recentEstimates.length > 0 ? (
-              recentEstimates.map((estimate) => (
-                <div key={estimate.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${getStatusColor(estimate.status)}`}>
-                      {getStatusIcon(estimate.status)}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{estimate.estimate_number}</p>
-                      <p className="text-sm text-gray-500">Paciente ID: {estimate.patient_id}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">R$ {estimate.total_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-gray-500 capitalize">{estimate.status}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum orçamento recente</p>
-              </div>
-            )}
-          </div>
-        </ModernCard>
-
-        {/* Recent Contracts */}
-        <ModernCard variant="elevated">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Contratos Recentes</h3>
-            <GradientButton variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              Ver Todos
-            </GradientButton>
-          </div>
-          
-          <div className="space-y-3">
-            {recentContracts.length > 0 ? (
-              recentContracts.map((contract) => (
-                <div key={contract.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${getStatusColor(contract.status)}`}>
-                      {getStatusIcon(contract.status)}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{contract.contract_number}</p>
-                      <p className="text-sm text-gray-500">Paciente ID: {contract.patient_id}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">R$ {contract.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-gray-500 capitalize">{contract.status.replace('_', ' ')}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum contrato recente</p>
-              </div>
-            )}
-          </div>
-        </ModernCard>
-      </div>
-
-      {/* Performance Metrics */}
-      <div className="mt-8">
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Métricas de Performance</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <ProgressRing
-                progress={dashboardStats?.conversion_rate || 0}
-                size={120}
-                color="#10b981"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Taxa de Conversão</h4>
-              <p className="text-sm text-gray-500">Orçamentos para contratos</p>
-            </div>
-            <div className="text-center">
-              <ProgressRing
-                progress={75}
-                size={120}
-                color="#3b82f6"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Taxa de Pagamento</h4>
-              <p className="text-sm text-gray-500">Contratos pagos</p>
-            </div>
-            <div className="text-center">
-              <ProgressRing
-                progress={85}
-                size={120}
-                color="#f59e0b"
-                className="mx-auto mb-4"
-              />
-              <h4 className="font-medium text-gray-900">Satisfação</h4>
-              <p className="text-sm text-gray-500">Avaliação dos pacientes</p>
-            </div>
-          </div>
-        </ModernCard>
-      </div>
-
-      {/* Top Procedures */}
-      {dashboardStats?.top_procedures && dashboardStats.top_procedures.length > 0 && (
-        <div className="mt-8">
-          <ModernCard variant="elevated">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Procedimentos Mais Solicitados</h3>
-            <div className="space-y-3">
-              {dashboardStats.top_procedures.slice(0, 5).map((procedure, index) => (
-                <div key={procedure.procedure_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-blue-600">{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{procedure.procedure_name}</p>
-                      <p className="text-sm text-gray-500">{procedure.count} solicitações</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">R$ {procedure.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-gray-500">Receita</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ModernCard>
         </div>
-      )}
-    </ModernLayout>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        {dashboardStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total de Orçamentos</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalEstimates}</p>
+                    <p className="text-xs text-gray-500">Este mês</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Contratos Assinados</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.signedContracts}</p>
+                    <p className="text-xs text-gray-500">Este mês</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pendentes</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.pendingEstimates}</p>
+                    <p className="text-xs text-gray-500">Aguardando aprovação</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Receita Total</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(dashboardStats.totalRevenue)}
+                    </p>
+                    <p className="text-xs text-gray-500">Este mês</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Recent Estimates */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Orçamentos Recentes</CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/comercial/orcamentos">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Todos
+                  </a>
+                </Button>
+              </div>
+              <CardDescription>Últimos orçamentos criados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {recentEstimates.length > 0 ? (
+                <div className="space-y-3">
+                  {recentEstimates.map((estimate) => (
+                    <div key={estimate.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {estimate.procedure_name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {estimate.patient_name} • {formatDate(estimate.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">
+                          {formatCurrency(estimate.total_value)}
+                        </p>
+                        {getStatusBadge(estimate.status)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Nenhum orçamento encontrado</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Contracts */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Contratos Recentes</CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/comercial/contratos">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Todos
+                  </a>
+                </Button>
+              </div>
+              <CardDescription>Últimos contratos assinados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {recentContracts.length > 0 ? (
+                <div className="space-y-3">
+                  {recentContracts.map((contract) => (
+                    <div key={contract.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {contract.procedure_name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {contract.patient_name} • {formatDate(contract.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">
+                          {formatCurrency(contract.total_value)}
+                        </p>
+                        {getStatusBadge(contract.status)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Nenhum contrato encontrado</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Ações Rápidas</CardTitle>
+            <CardDescription>Acesso rápido às principais funcionalidades comerciais</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/comercial/orcamento/novo">
+                  <Plus className="w-6 h-6 mb-2" />
+                  Novo Orçamento
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/comercial/contrato/novo">
+                  <FileText className="w-6 h-6 mb-2" />
+                  Novo Contrato
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/comercial/procedimentos">
+                  <BarChart3 className="w-6 h-6 mb-2" />
+                  Procedimentos
+                </a>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" asChild>
+                <a href="/comercial/relatorios">
+                  <PieChart className="w-6 h-6 mb-2" />
+                  Relatórios
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
 };
 

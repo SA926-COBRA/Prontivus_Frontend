@@ -18,8 +18,13 @@ import {
   Save,
   Send
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, LoadingSpinner } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { reportsApiService, ReportTemplate, ReportGenerationRequest, ReportValidationResponse } from '@/lib/reportsApi';
 
 const ReportGeneration: React.FC = () => {
@@ -28,460 +33,437 @@ const ReportGeneration: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [validation, setValidation] = useState<ReportValidationResponse | null>(null);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('generate');
-
-  // Form state
-  const [formData, setFormData] = useState({
-    report_format: 'pdf' as 'pdf' | 'excel' | 'csv' | 'html',
-    date_range_start: '',
-    date_range_end: '',
-    parameters: {} as Record<string, any>
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  
+  // Form data
+  const [formData, setFormData] = useState<ReportGenerationRequest>({
+    template_id: 0,
+    name: '',
+    description: '',
+    parameters: {},
+    schedule_date: '',
+    priority: 'normal',
+    recipients: []
   });
 
   useEffect(() => {
     loadTemplates();
   }, []);
 
-  useEffect(() => {
-    if (selectedTemplate) {
-      validateReport();
-    }
-  }, [selectedTemplate, formData]);
-
   const loadTemplates = async () => {
     try {
       setLoading(true);
-      const data = await reportsApiService.getTemplates({ is_active: true });
+      setError(null);
+      const data = await reportsApiService.getTemplates();
       setTemplates(data);
-    } catch (error) {
-      console.error('Error loading templates:', error);
+    } catch (err) {
+      setError('Erro ao carregar templates de relatório');
     } finally {
       setLoading(false);
     }
   };
 
-  const validateReport = async () => {
-    if (!selectedTemplate) return;
+  const handleTemplateSelect = (template: ReportTemplate) => {
+    setSelectedTemplate(template);
+    setFormData(prev => ({
+      ...prev,
+      template_id: template.id,
+      name: template.name || '',
+      description: template.description || ''
+    }));
+  };
 
+  const handleFormChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleParameterChange = (key: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      parameters: {
+        ...prev.parameters,
+        [key]: value
+      }
+    }));
+  };
+
+  const validateForm = async () => {
     try {
-      const validationRequest = {
-        template_id: selectedTemplate.id,
-        parameters: formData.parameters
-      };
-      const result = await reportsApiService.validateReport(validationRequest);
-      setValidation(result);
-    } catch (error) {
-      console.error('Error validating report:', error);
+      const response = await reportsApiService.validateReportRequest(formData);
+      setValidation(response);
+      if (response.is_valid) {
+        setError(null);
+      } else {
+        setError(response.errors.join(', '));
+      }
+    } catch (err) {
+      setError('Erro ao validar formulário');
     }
   };
 
-  const handleGenerateReport = async () => {
-    if (!selectedTemplate || !validation?.is_valid) return;
-
+  const generateReport = async () => {
     try {
       setGenerating(true);
+      setError(null);
+      setSuccess(null);
       
-      const request: ReportGenerationRequest = {
-        template_id: selectedTemplate.id,
-        report_format: formData.report_format,
-        parameters: formData.parameters,
-        date_range_start: formData.date_range_start || undefined,
-        date_range_end: formData.date_range_end || undefined,
-        expires_in_hours: 24
-      };
-
-      const report = await reportsApiService.generateReport(request);
+      const response = await reportsApiService.generateReport(formData);
+      setSuccess(`Relatório "${response.name}" gerado com sucesso!`);
       
-      // Show success message and redirect to reports list
-      alert(`Relatório ${report.report_number} gerado com sucesso!`);
-      
-    } catch (error) {
-      console.error('Error generating report:', error);
-      alert('Erro ao gerar relatório. Tente novamente.');
+      // Reset form
+      setFormData({
+        template_id: 0,
+        name: '',
+        description: '',
+        parameters: {},
+        schedule_date: '',
+        priority: 'normal',
+        recipients: []
+      });
+      setSelectedTemplate(null);
+      setValidation(null);
+    } catch (err) {
+      setError('Erro ao gerar relatório');
     } finally {
       setGenerating(false);
     }
   };
 
-  const sidebarItems = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/reports'
-    },
-    {
-      id: 'templates',
-      label: 'Modelos',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/reports/templates'
-    },
-    {
-      id: 'generate',
-      label: 'Gerar Relatório',
-      icon: <Plus className="h-4 w-4" />,
-      href: '/reports/generate'
-    },
-    {
-      id: 'my-reports',
-      label: 'Meus Relatórios',
-      icon: <Eye className="h-4 w-4" />,
-      href: '/reports/my-reports'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <BarChart3 className="h-4 w-4" />,
-      href: '/reports/analytics'
-    },
-    {
-      id: 'settings',
-      label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
-      href: '/reports/settings'
-    }
-  ];
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || template.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'clinical':
-        return 'Clínico';
-      case 'financial':
-        return 'Financeiro';
-      case 'administrative':
-        return 'Administrativo';
-      case 'commercial':
-        return 'Comercial';
-      case 'audit':
-        return 'Auditoria';
-      case 'custom':
-        return 'Personalizado';
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge variant="destructive">Alta</Badge>;
+      case 'medium':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Média</Badge>;
+      case 'low':
+        return <Badge variant="outline">Baixa</Badge>;
       default:
-        return type;
+        return <Badge variant="outline">Normal</Badge>;
     }
   };
 
-  const getFormatLabel = (format: string) => {
-    switch (format) {
-      case 'pdf':
-        return 'PDF';
-      case 'excel':
-        return 'Excel';
-      case 'csv':
-        return 'CSV';
-      case 'html':
-        return 'HTML';
-      default:
-        return format;
-    }
-  };
-
-  const renderParameterInputs = () => {
-    if (!selectedTemplate) return null;
-
-    const parameters = selectedTemplate.template_data?.parameters || {};
-    
-    return Object.entries(parameters).map(([key, param]: [string, any]) => (
-      <div key={key} className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          {param.label || key}
-        </label>
-        
-        {param.type === 'select' ? (
-          <select
-            value={formData.parameters[key] || ''}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              parameters: { ...prev.parameters, [key]: e.target.value }
-            }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Selecione...</option>
-            {param.options?.map((option: any) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        ) : param.type === 'checkbox' ? (
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={formData.parameters[key] || false}
-              onChange={(e) => setFormData(prev => ({
-                ...prev,
-                parameters: { ...prev.parameters, [key]: e.target.checked }
-              }))}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm text-gray-700">{param.label || key}</span>
-          </label>
-        ) : param.type === 'number' ? (
-          <input
-            type="number"
-            value={formData.parameters[key] || ''}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              parameters: { ...prev.parameters, [key]: e.target.value }
-            }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder={param.placeholder}
-          />
-        ) : (
-          <input
-            type="text"
-            value={formData.parameters[key] || ''}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              parameters: { ...prev.parameters, [key]: e.target.value }
-            }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder={param.placeholder}
-          />
-        )}
-        
-        {param.description && (
-          <p className="text-xs text-gray-500 mt-1">{param.description}</p>
-        )}
-      </div>
-    ));
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
   if (loading) {
     return (
-      <ModernLayout title="Gerar Relatório">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando templates de relatório...</p>
+          </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <ModernLayout
-      title="Gerar Relatório"
-      subtitle="Criar novos relatórios personalizados"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Gerar Relatório"
-        subtitle="Configure e gere relatórios personalizados"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Relatórios', href: '/reports' },
-          { label: 'Gerar Relatório' }
-        ]}
-        actions={
-          <div className="flex items-center space-x-2">
-            <GradientButton
-              variant="primary"
-              onClick={handleGenerateReport}
-              disabled={!selectedTemplate || !validation?.is_valid || generating}
-            >
-              {generating ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Gerar Relatório
-                </>
-              )}
-            </GradientButton>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Gerar Relatório</h1>
+            <p className="text-gray-600 mt-1">Crie relatórios personalizados usando templates</p>
           </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Template Selection */}
-        <div className="lg:col-span-1">
-          <ModernCard variant="elevated">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selecionar Modelo</h3>
-            
-            <div className="space-y-3">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors duration-200 ${
-                    selectedTemplate?.id === template.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setSelectedTemplate(template)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-blue-50">
-                      <FileText className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{template.name}</p>
-                      <p className="text-sm text-gray-500">{getTypeLabel(template.report_type)}</p>
-                      {template.description && (
-                        <p className="text-xs text-gray-400 mt-1">{template.description}</p>
-                      )}
-                    </div>
-                    {selectedTemplate?.id === template.id && (
-                      <CheckCircle className="h-5 w-5 text-blue-600" />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ModernCard>
+          <div className="flex items-center space-x-2">
+            <Button onClick={loadTemplates} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
-        {/* Configuration */}
-        <div className="lg:col-span-2">
-          <ModernCard variant="elevated">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Configuração do Relatório</h3>
-            
-            {selectedTemplate ? (
-              <div className="space-y-6">
-                {/* Basic Settings */}
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Configurações Básicas</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+            <p className="text-green-800">{success}</p>
+            <Button variant="ghost" size="sm" onClick={() => setSuccess(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Template Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Selecionar Template</CardTitle>
+              <CardDescription>Escolha um template para seu relatório</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Search and Filter */}
+              <div className="space-y-4 mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar templates..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={categoryFilter === 'all' ? 'default' : 'outline'}
+                    onClick={() => setCategoryFilter('all')}
+                    size="sm"
+                  >
+                    Todos
+                  </Button>
+                  <Button
+                    variant={categoryFilter === 'medical' ? 'default' : 'outline'}
+                    onClick={() => setCategoryFilter('medical')}
+                    size="sm"
+                  >
+                    Médicos
+                  </Button>
+                  <Button
+                    variant={categoryFilter === 'financial' ? 'default' : 'outline'}
+                    onClick={() => setCategoryFilter('financial')}
+                    size="sm"
+                  >
+                    Financeiros
+                  </Button>
+                  <Button
+                    variant={categoryFilter === 'administrative' ? 'default' : 'outline'}
+                    onClick={() => setCategoryFilter('administrative')}
+                    size="sm"
+                  >
+                    Administrativos
+                  </Button>
+                </div>
+              </div>
+
+              {/* Templates List */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {filteredTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors duration-200 ${
+                      selectedTemplate?.id === template.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleTemplateSelect(template)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{template.name}</p>
+                        <p className="text-sm text-gray-500">{template.description}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge variant="outline">{template.category}</Badge>
+                          {getPriorityBadge(template.priority || 'normal')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-400">
+                          {formatDate(template.created_at)}
+                        </p>
+                        <Button variant="outline" size="sm" className="mt-2">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Report Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurar Relatório</CardTitle>
+              <CardDescription>
+                {selectedTemplate ? `Configurando: ${selectedTemplate.name}` : 'Selecione um template primeiro'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {selectedTemplate ? (
+                <div className="space-y-6">
+                  {/* Basic Information */}
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Formato do Relatório
-                      </label>
+                      <Label htmlFor="name">Nome do Relatório</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => handleFormChange('name', e.target.value)}
+                        placeholder="Digite o nome do relatório"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Descrição</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => handleFormChange('description', e.target.value)}
+                        placeholder="Descreva o propósito do relatório"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Parameters */}
+                  {selectedTemplate.parameters && Object.keys(selectedTemplate.parameters).length > 0 && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Parâmetros</h4>
+                      {Object.entries(selectedTemplate.parameters).map(([key, param]) => (
+                        <div key={key}>
+                          <Label htmlFor={key}>{param.label || key}</Label>
+                          {param.type === 'text' && (
+                            <Input
+                              id={key}
+                              value={formData.parameters[key] || ''}
+                              onChange={(e) => handleParameterChange(key, e.target.value)}
+                              placeholder={param.placeholder || ''}
+                            />
+                          )}
+                          {param.type === 'textarea' && (
+                            <Textarea
+                              id={key}
+                              value={formData.parameters[key] || ''}
+                              onChange={(e) => handleParameterChange(key, e.target.value)}
+                              placeholder={param.placeholder || ''}
+                              rows={3}
+                            />
+                          )}
+                          {param.type === 'date' && (
+                            <Input
+                              id={key}
+                              type="date"
+                              value={formData.parameters[key] || ''}
+                              onChange={(e) => handleParameterChange(key, e.target.value)}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Schedule and Priority */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="schedule_date">Data de Agendamento</Label>
+                      <Input
+                        id="schedule_date"
+                        type="datetime-local"
+                        value={formData.schedule_date}
+                        onChange={(e) => handleFormChange('schedule_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="priority">Prioridade</Label>
                       <select
-                        value={formData.report_format}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          report_format: e.target.value as 'pdf' | 'excel' | 'csv' | 'html'
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        id="priority"
+                        value={formData.priority}
+                        onChange={(e) => handleFormChange('priority', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="pdf">PDF</option>
-                        <option value="excel">Excel</option>
-                        <option value="csv">CSV</option>
-                        <option value="html">HTML</option>
+                        <option value="low">Baixa</option>
+                        <option value="normal">Normal</option>
+                        <option value="medium">Média</option>
+                        <option value="high">Alta</option>
                       </select>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Modelo Selecionado
-                      </label>
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="font-medium text-gray-900">{selectedTemplate.name}</p>
-                        <p className="text-sm text-gray-500">{getTypeLabel(selectedTemplate.report_type)}</p>
-                      </div>
-                    </div>
                   </div>
-                </div>
 
-                {/* Date Range */}
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Período</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Data Inicial
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.date_range_start}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          date_range_start: e.target.value
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Data Final
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.date_range_end}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          date_range_end: e.target.value
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
+                  {/* Actions */}
+                  <div className="flex space-x-3">
+                    <Button
+                      onClick={validateForm}
+                      variant="outline"
+                      disabled={generating}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Validar
+                    </Button>
+                    <Button
+                      onClick={generateReport}
+                      disabled={generating || !validation?.is_valid}
+                      className="flex-1"
+                    >
+                      {generating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Gerar Relatório
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </div>
 
-                {/* Parameters */}
-                {selectedTemplate.template_data?.parameters && (
-                  <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-4">Parâmetros</h4>
-                    {renderParameterInputs()}
-                  </div>
-                )}
-
-                {/* Validation */}
-                {validation && (
-                  <div className="p-4 border rounded-lg">
-                    <h4 className="text-md font-medium text-gray-900 mb-3">Validação</h4>
-                    
-                    {validation.is_valid ? (
-                      <div className="flex items-center space-x-2 text-green-600">
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="font-medium">Configuração válida</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2 text-red-600">
-                          <XCircle className="h-5 w-5" />
-                          <span className="font-medium">Configuração inválida</span>
-                        </div>
-                        {validation.errors.map((error, index) => (
-                          <p key={index} className="text-sm text-red-600 ml-7">• {error}</p>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {validation.warnings.length > 0 && (
-                      <div className="mt-3">
-                        <div className="flex items-center space-x-2 text-yellow-600">
-                          <AlertTriangle className="h-5 w-5" />
-                          <span className="font-medium">Avisos</span>
-                        </div>
-                        {validation.warnings.map((warning, index) => (
-                          <p key={index} className="text-sm text-yellow-600 ml-7">• {warning}</p>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {validation.estimated_generation_time_seconds && (
-                      <div className="mt-3 text-sm text-gray-600">
-                        <p>Tempo estimado: {validation.estimated_generation_time_seconds} segundos</p>
-                        {validation.estimated_file_size_mb && (
-                          <p>Tamanho estimado: {validation.estimated_file_size_mb.toFixed(1)} MB</p>
+                  {/* Validation Results */}
+                  {validation && (
+                    <div className={`p-4 rounded-lg ${
+                      validation.is_valid 
+                        ? 'bg-green-50 border border-green-200' 
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <div className="flex items-center">
+                        {validation.is_valid ? (
+                          <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600 mr-2" />
                         )}
+                        <p className={`font-medium ${
+                          validation.is_valid ? 'text-green-800' : 'text-red-800'
+                        }`}>
+                          {validation.is_valid ? 'Formulário válido' : 'Formulário inválido'}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione um modelo</h3>
-                <p>Escolha um modelo de relatório para começar a configuração</p>
-              </div>
-            )}
-          </ModernCard>
+                      {validation.errors.length > 0 && (
+                        <ul className="mt-2 text-sm text-red-700">
+                          {validation.errors.map((error, index) => (
+                            <li key={index}>• {error}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Selecione um template para configurar o relatório</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </ModernLayout>
+    </AppLayout>
   );
 };
 

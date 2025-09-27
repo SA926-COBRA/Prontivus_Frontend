@@ -21,8 +21,7 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, AnimatedCounter, ProgressRing } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { dashboardApi, DashboardMetrics, Appointment, PendingTask, FinancialSummary } from '@/lib/dashboardApi';
 import { apiService } from '@/lib/api';
 
@@ -34,7 +33,6 @@ const Dashboard = () => {
   const [financialData, setFinancialData] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('dashboard');
 
   // Load dashboard data
   useEffect(() => {
@@ -88,441 +86,322 @@ const Dashboard = () => {
         window.location.href = '/secretaria/pacientes';
         break;
       case 'agenda':
-        window.location.href = '/agenda';
+        window.location.href = '/secretaria/agenda';
         break;
       default:
-        console.log(`Quick action: ${action}`);
+        console.log('Unknown action:', action);
     }
   };
 
-  const handleDeleteAppointment = async (appointmentId: number) => {
+  const handleRemoveTask = async (taskId: number) => {
     try {
-      // Update appointment status to cancelled instead of deleting
-      await apiService.updateAppointmentStatus(appointmentId, 'cancelled');
-      
-      // Remove from local state
-      setTodayAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
-      
-      // Refresh dashboard data
-      await loadDashboardData();
-      
-      console.log(`Appointment ${appointmentId} cancelled successfully`);
-    } catch (error) {
-      console.error('Error cancelling appointment:', error);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: number) => {
-    try {
-      // Remove task from local state
+      await apiService.delete(`/api/v1/dashboard/tasks/${taskId}`);
       setPendingTasks(prev => prev.filter(task => task.id !== taskId));
-      
-      console.log(`Task ${taskId} removed successfully`);
     } catch (error) {
       console.error('Error removing task:', error);
     }
   };
 
-  // Sidebar configuration
-  const sidebarItems = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/dashboard'
-    },
-    {
-      id: 'patients',
-      label: 'Pacientes',
-      icon: <Users className="h-4 w-4" />,
-      href: '/secretaria/pacientes',
-      badge: pendingTasks.length
-    },
-    {
-      id: 'appointments',
-      label: 'Agendamentos',
-      icon: <Calendar className="h-4 w-4" />,
-      href: '/secretaria/agenda',
-      badge: todayAppointments.length
-    },
-    {
-      id: 'medical',
-      label: 'Atendimento',
-      icon: <Stethoscope className="h-4 w-4" />,
-      href: '/atendimento'
-    },
-    {
-      id: 'financial',
-      label: 'Financeiro',
-      icon: <DollarSign className="h-4 w-4" />,
-      href: '/financeiro'
-    },
-    {
-      id: 'reports',
-      label: 'Relatórios',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/relatorios'
-    }
-  ];
-
-  // Main stats for the modern grid
-  const mainStats = [
-    {
-      title: 'Consultas Hoje',
-      value: <AnimatedCounter value={metrics?.todayAppointments || 0} />,
-      change: 12,
-      changeType: 'positive' as const,
-      icon: <Calendar className="h-6 w-6" />,
-      color: 'blue' as const
-    },
-    {
-      title: 'Pacientes Aguardando',
-      value: <AnimatedCounter value={metrics?.waitingPatients || 0} />,
-      change: -3,
-      changeType: 'negative' as const,
-      icon: <Clock className="h-6 w-6" />,
-      color: 'green' as const
-    },
-    {
-      title: 'Receita Hoje',
-      value: `R$ ${(financialData?.todayRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      change: 8,
-      changeType: 'positive' as const,
-      icon: <DollarSign className="h-6 w-6" />,
-      color: 'yellow' as const
-    },
-    {
-      title: 'Taxa de Ocupação',
-      value: `${metrics?.occupancyRate || 0}%`,
-      change: 0,
-      changeType: 'neutral' as const,
-      icon: <TrendingUp className="h-6 w-6" />,
-      color: 'purple' as const
-    }
-  ];
-
   // Show loading state
   if (loading) {
     return (
-      <ModernLayout title="Dashboard" subtitle="Carregando dados...">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
             <p className="text-gray-500">Carregando dados do dashboard...</p>
           </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <ModernLayout title="Dashboard" subtitle="Erro ao carregar dados">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="w-8 h-8 mx-auto mb-4 text-red-500" />
             <p className="text-red-600 mb-4">{error}</p>
-            <GradientButton onClick={handleRefresh} variant="primary">
-              <RefreshCw className="w-4 h-4 mr-2" />
+            <Button onClick={handleRefresh} className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" />
               Tentar Novamente
-            </GradientButton>
+            </Button>
           </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <ModernLayout
-      title="Dashboard"
-      subtitle="Visão geral da sua clínica"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Dashboard"
-        subtitle={`Visão geral da sua clínica - ${new Date().toLocaleDateString('pt-BR')}`}
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Dashboard' }
-        ]}
-        actions={
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600 mt-1">Visão geral da sua clínica</p>
+          </div>
           <div className="flex items-center space-x-2">
-            <GradientButton onClick={handleRefresh} variant="secondary" size="sm">
+            <Button onClick={handleRefresh} variant="outline" size="sm">
               <RefreshCw className="w-4 h-4 mr-2" />
               Atualizar
-            </GradientButton>
-            <GradientButton asChild>
+            </Button>
+            <Button asChild>
               <Link to="/agenda/novo">
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Agendamento
               </Link>
-            </GradientButton>
-            <GradientButton variant="outline" asChild>
+            </Button>
+            <Button variant="outline" asChild>
               <Link to="/pacientes/novo">
                 <Users className="w-4 h-4 mr-2" />
                 Novo Paciente
               </Link>
-            </GradientButton>
+            </Button>
           </div>
-        }
-      />
+        </div>
 
-      {/* Key Metrics */}
-      <ModernStatsGrid stats={mainStats} className="mb-8" />
-
-      {/* Main Content */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Today's Appointments */}
-        <ModernCard variant="elevated" className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Consultas de Hoje</h3>
-            <GradientButton variant="outline" size="sm" asChild>
-              <Link to="/agenda">
-                <Eye className="w-4 h-4 mr-2" />
-                Ver Todas
-              </Link>
-            </GradientButton>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">Próximas consultas agendadas para hoje</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Consultas Hoje</p>
+                  <p className="text-2xl font-bold text-gray-900">{metrics?.todayAppointments || 0}</p>
+                  <p className="text-xs text-gray-500">Agendadas para hoje</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
-          <div className="space-y-4">
-            {todayAppointments.length > 0 ? (
-              todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-blue-600" />
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Pacientes Aguardando</p>
+                  <p className="text-2xl font-bold text-gray-900">{metrics?.waitingPatients || 0}</p>
+                  <p className="text-xs text-gray-500">Na fila de atendimento</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Tarefas Pendentes</p>
+                  <p className="text-2xl font-bold text-gray-900">{pendingTasks.length}</p>
+                  <p className="text-xs text-gray-500">Requerem atenção</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Receita Hoje</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    R$ {financialData?.todayRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                  </p>
+                  <p className="text-xs text-gray-500">Valor arrecadado</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Today's Appointments */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Consultas de Hoje</CardTitle>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/agenda">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Todas
+                  </Link>
+                </Button>
+              </div>
+              <CardDescription>Próximas consultas agendadas para hoje</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {todayAppointments.length > 0 ? (
+                  todayAppointments.map((appointment) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{appointment.patient_name}</p>
+                          <p className="text-sm text-gray-500">{appointment.doctor_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">{appointment.time}</p>
+                        <Badge variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}>
+                          {appointment.status === 'confirmed' ? 'Confirmada' : 'Pendente'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{appointment.patient_name}</p>
-                      <p className="text-sm text-gray-500">{appointment.doctor_name}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>Nenhuma consulta agendada para hoje</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">{appointment.appointment_time}</p>
-                      <Badge 
-                        variant={
-                          appointment.status === 'confirmed' ? 'default' : 
-                          appointment.status === 'waiting' ? 'secondary' :
-                          appointment.status === 'completed' ? 'default' :
-                          'destructive'
-                        }
-                        className="text-xs"
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Tasks */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tarefas Pendentes</CardTitle>
+              <CardDescription>Tarefas que requerem atenção</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingTasks.length > 0 ? (
+                  pendingTasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                        <div>
+                          <p className="font-medium text-gray-900">{task.title}</p>
+                          <p className="text-sm text-gray-500">{task.description}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveTask(task.id)}
+                        className="text-red-600 hover:text-red-700"
                       >
-                        {appointment.status === 'confirmed' ? 'Confirmada' : 
-                         appointment.status === 'waiting' ? 'Aguardando' :
-                         appointment.status === 'completed' ? 'Concluída' :
-                         appointment.status === 'cancelled' ? 'Cancelada' :
-                         'Agendada'}
-                      </Badge>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <GradientButton
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDeleteAppointment(appointment.id)}
-                      title="Cancelar consulta"
-                    >
-                      <X className="w-4 h-4" />
-                    </GradientButton>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                    <p className="text-sm">Todas as tarefas concluídas!</p>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma consulta agendada para hoje</p>
+                )}
               </div>
-            )}
-          </div>
-        </ModernCard>
+            </CardContent>
+          </Card>
 
-        {/* Pending Tasks */}
-        <ModernCard variant="elevated">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Tarefas Pendentes</h3>
-            <Badge variant="destructive">{pendingTasks.length}</Badge>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">Ações que precisam de atenção</p>
-          
-          <div className="space-y-3">
-            {pendingTasks.length > 0 ? (
-              pendingTasks.map((task) => (
-                <div key={task.id} className="flex items-start space-x-3 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${
-                    task.priority === 'high' ? 'bg-red-500' : 
-                    task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                    <p className="text-xs text-gray-500 capitalize">
-                      {task.type === 'insurance' ? 'Verificação de Convênio' :
-                       task.type === 'exams' ? 'Exames' : 
-                       task.type === 'consultation' ? 'Consulta' :
-                       task.type === 'billing' ? 'Faturamento' : 'Outros'}
-                    </p>
-                    {task.patient_name && (
-                      <p className="text-xs text-blue-600">{task.patient_name}</p>
-                    )}
-                  </div>
-                  <GradientButton
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDeleteTask(task.id)}
-                    title="Remover tarefa"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </GradientButton>
+          {/* Financial Summary */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Resumo Financeiro</CardTitle>
+              <CardDescription>Informações financeiras do dia</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-green-600">
+                    R$ {financialData?.todayRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                  </p>
+                  <p className="text-sm text-gray-600">Receita Hoje</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Nenhuma tarefa pendente</p>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-blue-600">
+                    R$ {financialData?.monthlyRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                  </p>
+                  <p className="text-sm text-gray-600">Receita Mensal</p>
+                </div>
               </div>
-            )}
-          </div>
-          
-          <GradientButton 
-            variant="outline" 
-            size="sm" 
-            className="w-full mt-4"
-            onClick={() => handleQuickAction('reports')}
-          >
-            Ver Todas as Tarefas
-          </GradientButton>
-        </ModernCard>
+            </CardContent>
+          </Card>
 
-        {/* Revenue Snapshot */}
-        <ModernCard variant="elevated" className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Resumo Financeiro</h3>
-              <p className="text-sm text-gray-500">Receita e despesas do mês atual</p>
-            </div>
-            <GradientButton 
-              variant="outline" 
-              size="sm"
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </GradientButton>
-          </div>
-          
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="text-center p-4 border border-gray-200 rounded-lg bg-green-50">
-              <p className="text-2xl font-bold text-green-600">
-                R$ {(financialData?.monthlyRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Receita Mensal</p>
-            </div>
-            <div className="text-center p-4 border border-gray-200 rounded-lg bg-red-50">
-              <p className="text-2xl font-bold text-red-600">
-                R$ {(financialData?.monthlyExpenses || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Despesas</p>
-            </div>
-            <div className="text-center p-4 border border-gray-200 rounded-lg bg-blue-50">
-              <p className="text-2xl font-bold text-blue-600">
-                R$ {(financialData?.netProfit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Lucro Líquido</p>
-            </div>
-          </div>
-          
-          {/* Additional financial info */}
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
-            <div className="text-center p-3 border border-gray-200 rounded-lg bg-yellow-50">
-              <p className="text-lg font-bold text-yellow-600">
-                R$ {(financialData?.pendingPayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Pagamentos Pendentes</p>
-            </div>
-            <div className="text-center p-3 border border-gray-200 rounded-lg bg-red-50">
-              <p className="text-lg font-bold text-red-600">
-                R$ {(financialData?.overduePayments || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Pagamentos Vencidos</p>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <GradientButton variant="outline" size="sm" asChild>
-              <Link to="/financeiro">
-                <FileText className="w-4 h-4 mr-2" />
-                Ver Relatório Completo
-              </Link>
-            </GradientButton>
-          </div>
-        </ModernCard>
-
-        {/* Quick Actions */}
-        <ModernCard variant="elevated">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
-          <p className="text-sm text-gray-500 mb-4">Acesso rápido às principais funcionalidades</p>
-          
-          <div className="space-y-2">
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('checkin')}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Check-in Paciente
-            </GradientButton>
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('consultation')}
-            >
-              <Stethoscope className="w-4 h-4 mr-2" />
-              Iniciar Consulta
-            </GradientButton>
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('billing')}
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Faturamento
-            </GradientButton>
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('reports')}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Relatórios
-            </GradientButton>
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('patients')}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Lista de Pacientes
-            </GradientButton>
-            <GradientButton 
-              variant="outline" 
-              className="w-full justify-start hover:bg-blue-50" 
-              onClick={() => handleQuickAction('agenda')}
-            >
-              <Calendar className="w-4 h-4 mr-2" />
-              Agenda Completa
-            </GradientButton>
-          </div>
-        </ModernCard>
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Ações Rápidas</CardTitle>
+              <CardDescription>Acesso rápido às principais funcionalidades</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('checkin')}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Check-in Pacientes
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('consultation')}
+                >
+                  <Stethoscope className="w-4 h-4 mr-2" />
+                  Nova Consulta
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('billing')}
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Faturamento
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('reports')}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Relatórios
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('patients')}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Lista de Pacientes
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start hover:bg-blue-50" 
+                  onClick={() => handleQuickAction('agenda')}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Agenda Completa
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </ModernLayout>
+    </AppLayout>
   );
 };
 

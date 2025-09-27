@@ -23,20 +23,21 @@ import {
   User,
   Stethoscope
 } from 'lucide-react';
-import { ModernLayout, ModernSidebar, ModernPageHeader, ModernStatsGrid } from '@/components/layout/ModernLayout';
-import { ModernCard, GradientButton, AnimatedCounter, ProgressRing, LoadingSpinner } from '@/components/ui/ModernComponents';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { voiceApiService, VoiceSession, VoiceDashboardStats } from '@/lib/voiceApi';
 
 const VoiceSessionsDashboard: React.FC = () => {
   const [sessions, setSessions] = useState<VoiceSession[]>([]);
   const [dashboardStats, setDashboardStats] = useState<VoiceDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSidebarItem, setActiveSidebarItem] = useState('sessions');
-  
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [patientFilter, setPatientFilter] = useState<string>('');
-  const [dateFilter, setDateFilter] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedSessions, setSelectedSessions] = useState<number[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -45,426 +46,366 @@ const VoiceSessionsDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      const [sessionsData, stats] = await Promise.all([
-        voiceApiService.getVoiceSessions({ limit: 50 }),
-        voiceApiService.getVoiceDashboard()
+      setError(null);
+
+      const [sessionsData, statsData] = await Promise.all([
+        voiceApiService.getSessions(),
+        voiceApiService.getDashboardStats()
       ]);
 
       setSessions(sessionsData);
-      setDashboardStats(stats);
-    } catch (error) {
-      console.error('Error loading voice sessions dashboard data:', error);
+      setDashboardStats(statsData);
+    } catch (err) {
+      setError('Erro ao carregar dados do dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'text-green-600 bg-green-50';
-      case 'completed':
-        return 'text-blue-600 bg-blue-50';
-      case 'paused':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'cancelled':
-        return 'text-gray-600 bg-gray-50';
-      case 'error':
-        return 'text-red-600 bg-red-50';
-      default:
-        return 'text-blue-600 bg-blue-50';
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+  };
+
+  const handleSessionAction = async (sessionId: number, action: string) => {
+    try {
+      switch (action) {
+        case 'transcribe':
+          await voiceApiService.transcribeSession(sessionId);
+          break;
+        case 'download':
+          await voiceApiService.downloadSession(sessionId);
+          break;
+        case 'delete':
+          await voiceApiService.deleteSession(sessionId);
+          setSessions(prev => prev.filter(s => s.id !== sessionId));
+          break;
+      }
+      await loadDashboardData();
+    } catch (err) {
+      setError(`Erro ao executar ação: ${action}`);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Activity className="h-4 w-4" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'paused':
-        return <Pause className="h-4 w-4" />;
-      case 'cancelled':
-        return <XCircle className="h-4 w-4" />;
-      case 'error':
-        return <AlertTriangle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
+  const handleBulkAction = async (action: string) => {
+    try {
+      for (const sessionId of selectedSessions) {
+        await handleSessionAction(sessionId, action);
+      }
+      setSelectedSessions([]);
+    } catch (err) {
+      setError(`Erro ao executar ação em lote: ${action}`);
     }
   };
 
-  const getTranscriptionStatusColor = (status: string) => {
+  const filteredSessions = sessions.filter(session => {
+    const matchesSearch = session.transcription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         session.id.toString().includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || session.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-50';
+        return <Badge variant="default" className="bg-green-100 text-green-800">Concluído</Badge>;
       case 'processing':
-        return 'text-blue-600 bg-blue-50';
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-50';
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Processando</Badge>;
       case 'failed':
-        return 'text-red-600 bg-red-50';
+        return <Badge variant="destructive">Falhou</Badge>;
       default:
-        return 'text-gray-600 bg-gray-50';
+        return <Badge variant="outline">Pendente</Badge>;
     }
   };
 
-  const getTranscriptionStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'processing':
-        return <Clock className="h-4 w-4" />;
-      case 'pending':
-        return <Clock className="h-4 w-4" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const formatDuration = (seconds: number): string => {
+  const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getSpecialtyLabel = (specialty: string) => {
-    const specialties: Record<string, string> = {
-      'cardiologia': 'Cardiologia',
-      'ortopedia': 'Ortopedia',
-      'neurologia': 'Neurologia',
-      'oftalmologia': 'Oftalmologia',
-      'dermatologia': 'Dermatologia',
-      'ginecologia': 'Ginecologia',
-      'urologia': 'Urologia',
-      'pediatria': 'Pediatria',
-      'cirurgia_geral': 'Cirurgia Geral',
-      'plastica': 'Cirurgia Plástica'
-    };
-    return specialties[specialty] || specialty;
-  };
-
-  const sidebarItems = [
-    {
-      id: 'recording',
-      label: 'Gravação',
-      icon: <Mic className="h-4 w-4" />,
-      href: '/voice/recording'
-    },
-    {
-      id: 'sessions',
-      label: 'Sessões',
-      icon: <Activity className="h-4 w-4" />,
-      href: '/voice/sessions'
-    },
-    {
-      id: 'transcriptions',
-      label: 'Transcrições',
-      icon: <FileText className="h-4 w-4" />,
-      href: '/voice/transcriptions'
-    },
-    {
-      id: 'notes',
-      label: 'Notas Clínicas',
-      icon: <Edit className="h-4 w-4" />,
-      href: '/voice/notes'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: <BarChart3 className="h-4 w-4" />,
-      href: '/voice/analytics'
-    },
-    {
-      id: 'settings',
-      label: 'Configurações',
-      icon: <Settings className="h-4 w-4" />,
-      href: '/voice/settings'
-    }
-  ];
-
-  const mainStats = [
-    {
-      title: 'Sessões Ativas',
-      value: <AnimatedCounter value={dashboardStats?.active_sessions || 0} />,
-      change: 2,
-      changeType: 'positive' as const,
-      icon: <Activity className="h-6 w-6" />,
-      color: 'green' as const
-    },
-    {
-      title: 'Sessões Hoje',
-      value: <AnimatedCounter value={dashboardStats?.total_sessions_today || 0} />,
-      change: 15,
-      changeType: 'positive' as const,
-      icon: <Calendar className="h-6 w-6" />,
-      color: 'blue' as const
-    },
-    {
-      title: 'Duração Total',
-      value: <AnimatedCounter value={Math.round(dashboardStats?.total_duration_today_minutes || 0)} />,
-      change: 8,
-      changeType: 'positive' as const,
-      icon: <Clock className="h-6 w-6" />,
-      color: 'purple' as const
-    },
-    {
-      title: 'Taxa de Sucesso',
-      value: <AnimatedCounter value={Math.round((dashboardStats?.transcription_success_rate || 0) * 100)} />,
-      change: 5,
-      changeType: 'positive' as const,
-      icon: <CheckCircle className="h-6 w-6" />,
-      color: 'green' as const
-    }
-  ];
 
   if (loading) {
     return (
-      <ModernLayout title="Sessões de Voz">
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
-          <LoadingSpinner size="lg" />
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dashboard...</p>
+          </div>
         </div>
-      </ModernLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <ModernLayout
-      title="Sessões de Voz"
-      subtitle="Gestão de sessões de gravação e transcrição"
-      sidebar={
-        <ModernSidebar
-          items={sidebarItems}
-          activeItem={activeSidebarItem}
-          onItemClick={setActiveSidebarItem}
-        />
-      }
-    >
-      <ModernPageHeader
-        title="Sessões de Voz"
-        subtitle="Visualize e gerencie suas sessões de gravação"
-        breadcrumbs={[
-          { label: 'Início', href: '/' },
-          { label: 'Voz', href: '/voice' },
-          { label: 'Sessões' }
-        ]}
-        actions={
-          <div className="flex items-center space-x-2">
-            <GradientButton variant="primary">
-              <Mic className="h-4 w-4 mr-2" />
-              Nova Gravação
-            </GradientButton>
-            <GradientButton variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
-              Configurações
-            </GradientButton>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Sessões de Voz</h1>
+            <p className="text-gray-600 mt-1">Dashboard de gravações e transcrições</p>
           </div>
-        }
-      />
+          <div className="flex items-center space-x-2">
+            <Button onClick={loadDashboardData} variant="outline" size="sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
+        </div>
 
-      {/* Main Stats Grid */}
-      <ModernStatsGrid stats={mainStats} className="mb-8" />
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+            <p className="text-red-800">{error}</p>
+            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
-      {/* Filters */}
-      <ModernCard variant="elevated" className="mb-6">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por ID da sessão ou paciente..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={patientFilter}
-                onChange={(e) => setPatientFilter(e.target.value)}
-              />
+        {/* Stats Cards */}
+        {dashboardStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Mic className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total de Sessões</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalSessions}</p>
+                    <p className="text-xs text-gray-500">Gravações realizadas</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Transcrições Concluídas</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.completedTranscriptions}</p>
+                    <p className="text-xs text-gray-500">Processadas com sucesso</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Em Processamento</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardStats.processingSessions}</p>
+                    <p className="text-xs text-gray-500">Aguardando transcrição</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Tempo Total</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatDuration(dashboardStats.totalDuration)}</p>
+                    <p className="text-xs text-gray-500">Minutos gravados</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Filters and Search */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtros e Busca</CardTitle>
+            <CardDescription>Encontre sessões específicas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por ID ou transcrição..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('all')}
+                  size="sm"
+                >
+                  Todas
+                </Button>
+                <Button
+                  variant={statusFilter === 'completed' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('completed')}
+                  size="sm"
+                >
+                  Concluídas
+                </Button>
+                <Button
+                  variant={statusFilter === 'processing' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('processing')}
+                  size="sm"
+                >
+                  Processando
+                </Button>
+                <Button
+                  variant={statusFilter === 'failed' ? 'default' : 'outline'}
+                  onClick={() => handleStatusFilter('failed')}
+                  size="sm"
+                >
+                  Falhadas
+                </Button>
+              </div>
             </div>
-          </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos os status</option>
-            <option value="active">Ativo</option>
-            <option value="completed">Concluído</option>
-            <option value="paused">Pausado</option>
-            <option value="cancelled">Cancelado</option>
-            <option value="error">Erro</option>
-          </select>
-          
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </ModernCard>
+          </CardContent>
+        </Card>
 
-      {/* Sessions List */}
-      <ModernCard variant="elevated">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Sessões de Voz</h3>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">
-              {sessions.length} sessões encontradas
-            </span>
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          {sessions.length > 0 ? (
-            sessions.map((session) => (
-              <div key={session.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-2 rounded-lg ${getStatusColor(session.status)}`}>
-                      {getStatusIcon(session.status)}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-medium text-gray-900">{session.session_id}</h4>
-                        <span className="text-sm text-gray-500">•</span>
-                        <span className="text-sm text-gray-500">Paciente {session.patient_id}</span>
+        {/* Sessions List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Sessões de Gravação</CardTitle>
+                <CardDescription>
+                  {filteredSessions.length} de {sessions.length} sessões
+                </CardDescription>
+              </div>
+              {selectedSessions.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('transcribe')}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Transcrever Selecionadas
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('download')}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Baixar Selecionadas
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleBulkAction('delete')}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir Selecionadas
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredSessions.length > 0 ? (
+              <div className="space-y-3">
+                {filteredSessions.map((session) => (
+                  <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedSessions.includes(session.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSessions(prev => [...prev, session.id]);
+                          } else {
+                            setSelectedSessions(prev => prev.filter(id => id !== session.id));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-blue-600" />
                       </div>
-                      
-                      <div className="flex items-center space-x-4 mt-1">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs text-gray-500">
-                            {formatDate(session.start_time)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3 text-gray-400" />
-                          <span className="text-xs text-gray-500">
-                            {formatDuration(session.duration_seconds)}
-                          </span>
-                        </div>
-                        
-                        {session.medical_specialty && (
-                          <div className="flex items-center space-x-1">
-                            <Stethoscope className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-500">
-                              {getSpecialtyLabel(session.medical_specialty)}
-                            </span>
-                          </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          Sessão {session.id}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(session.created_at).toLocaleString('pt-BR')} • 
+                          Duração: {formatDuration(session.duration)}
+                        </p>
+                        {session.transcription && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {session.transcription.substring(0, 100)}...
+                          </p>
                         )}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {/* Transcription Status */}
-                    <div className={`px-2 py-1 rounded-full text-xs ${getTranscriptionStatusColor(session.transcription_status)}`}>
+                    <div className="flex items-center space-x-2">
+                      {getStatusBadge(session.status)}
                       <div className="flex items-center space-x-1">
-                        {getTranscriptionStatusIcon(session.transcription_status)}
-                        <span>{session.transcription_status}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-1">
-                      <GradientButton
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {/* View session details */}}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </GradientButton>
-                      
-                      {session.transcription_text && (
-                        <GradientButton
+                        <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {/* View transcription */}}
+                          onClick={() => handleSessionAction(session.id, 'transcribe')}
+                          disabled={session.status === 'processing'}
                         >
-                          <FileText className="h-4 w-4" />
-                        </GradientButton>
-                      )}
-                      
-                      {session.audio_file_path && (
-                        <GradientButton
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {/* Download audio */}}
+                          onClick={() => handleSessionAction(session.id, 'download')}
                         >
-                          <Download className="h-4 w-4" />
-                        </GradientButton>
-                      )}
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSessionAction(session.id, 'delete')}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Session Details */}
-                {session.clinical_context && (
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Contexto:</span> {session.clinical_context}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Quality Metrics */}
-                {(session.audio_quality_score || session.speech_clarity_score) && (
-                  <div className="mt-3 flex items-center space-x-4">
-                    {session.audio_quality_score && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">Qualidade do Áudio:</span>
-                        <ProgressRing
-                          progress={Math.round(session.audio_quality_score * 100)}
-                          size={20}
-                          color="#10b981"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {Math.round(session.audio_quality_score * 100)}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {session.speech_clarity_score && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">Clareza da Fala:</span>
-                        <ProgressRing
-                          progress={Math.round(session.speech_clarity_score * 100)}
-                          size={20}
-                          color="#3b82f6"
-                        />
-                        <span className="text-xs text-gray-500">
-                          {Math.round(session.speech_clarity_score * 100)}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Nenhuma sessão encontrada</p>
+                {searchTerm && (
+                  <p className="text-sm mt-2">Tente ajustar os filtros de busca</p>
                 )}
               </div>
-            ))
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Activity className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma sessão encontrada</h3>
-              <p>Comece uma nova gravação para ver suas sessões aqui</p>
-            </div>
-          )}
-        </div>
-      </ModernCard>
-    </ModernLayout>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
 };
 

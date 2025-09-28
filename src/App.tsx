@@ -47,6 +47,8 @@ import SurgicalEstimates from "./pages/SurgicalEstimates";
 import ReportsDashboard from "./pages/ReportsDashboard";
 import ReportGeneration from "./pages/ReportGeneration";
 import VoiceRecording from "./pages/VoiceRecording";
+import HealthInsuranceOperators from "./pages/HealthInsuranceOperators";
+import TISSDashboard from "./pages/TISSDashboard";
 import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
 import BIAnalyticsDashboard from "./pages/BIAnalyticsDashboard";
 import PerformanceAnalytics from "./pages/PerformanceAnalytics";
@@ -58,6 +60,12 @@ import TISSManagement from "./pages/TISSManagement";
 import StatisticalReportsDashboard from "./pages/StatisticalReportsDashboard";
 import IntegrationsDashboard from "./pages/IntegrationsDashboard";
 import AIIntegrationDashboard from "./pages/AIIntegrationDashboard";
+import TelemedicineDashboard from "./pages/TelemedicineDashboard";
+import VideoConsultation from "./pages/VideoConsultation";
+import TelemedicineConfiguration from "./pages/TelemedicineConfiguration";
+import AIAnalysisSession from "./pages/AIAnalysisSession";
+import DigitalPrescriptionDashboard from "./pages/DigitalPrescriptionDashboard";
+import DigitalPrescriptionEditor from "./pages/DigitalPrescriptionEditor";
 
 const queryClient = new QueryClient();
 
@@ -202,9 +210,14 @@ const App = () => (
                  {/* Integrations Module Routes */}
                  <Route path="/integrations" element={<RoleGuard allowedUserTypes={['staff']}><IntegrationsDashboard /></RoleGuard>} />
                  <Route path="/integrations/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><IntegrationsDashboard /></RoleGuard>} />
+                <Route path="/tiss/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><TISSDashboard /></RoleGuard>} />
+                <Route path="/tiss/operators" element={<RoleGuard allowedUserTypes={['staff']}><HealthInsuranceOperators /></RoleGuard>} />
                  <Route path="/integrations/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
-                 <Route path="/integrations/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
-                 <Route path="/integrations/sessions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/integrations/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
+                 <Route path="/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
+                 <Route path="/telemedicine/sessions/:sessionId" element={<RoleGuard allowedUserTypes={['staff']}><VideoConsultation /></RoleGuard>} />
+                 <Route path="/telemedicine/configuration" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineConfiguration /></RoleGuard>} />
+                 <Route path="/integrations/sessions" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
                  <Route path="/integrations/authorizations" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/integrations/webhooks" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/integrations/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
@@ -213,12 +226,23 @@ const App = () => (
                  {/* AI Integration Module Routes */}
                  <Route path="/ai-integration" element={<RoleGuard allowedUserTypes={['staff']}><AIIntegrationDashboard /></RoleGuard>} />
                  <Route path="/ai-integration/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><AIIntegrationDashboard /></RoleGuard>} />
+                 <Route path="/ai-integration/sessions/:sessionId" element={<RoleGuard allowedUserTypes={['staff']}><AIAnalysisSession /></RoleGuard>} />
                  <Route path="/ai-integration/configurations" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/ai-integration/summaries" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/ai-integration/transcriptions" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/ai-integration/notes" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/ai-integration/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/ai-integration/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 
+                 {/* Digital Prescription Module Routes */}
+                 <Route path="/digital-prescription" element={<RoleGuard allowedUserTypes={['staff']}><DigitalPrescriptionDashboard /></RoleGuard>} />
+                 <Route path="/digital-prescription/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><DigitalPrescriptionDashboard /></RoleGuard>} />
+                 <Route path="/digital-prescription/new" element={<RoleGuard allowedUserTypes={['staff']}><DigitalPrescriptionEditor /></RoleGuard>} />
+                 <Route path="/digital-prescription/:prescriptionId" element={<RoleGuard allowedUserTypes={['staff']}><DigitalPrescriptionEditor /></RoleGuard>} />
+                 <Route path="/digital-prescription/templates" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/digital-prescription/configuration" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/digital-prescription/analytics" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                 <Route path="/digital-prescription/settings" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
           
           {/* Additional Routes for Sidebar Navigation */}
           <Route path="/demo" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

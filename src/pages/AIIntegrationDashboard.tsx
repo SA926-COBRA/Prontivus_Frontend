@@ -1,853 +1,374 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  CpuChipIcon, 
-  DocumentTextIcon,
-  MicrophoneIcon,
-  ClipboardDocumentListIcon,
-  ChartBarIcon,
-  Cog6ToothIcon,
-  PlusIcon,
-  EyeIcon,
-  PencilIcon,
-  PlayIcon,
-  StopIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
-  SparklesIcon,
-  CpuChipIcon
-} from '@heroicons/react/24/outline';
-import { ModernCard, GradientButton, AnimatedCounter, StatusIndicator, LoadingSpinner } from '../components/ui/ModernComponents';
-import { aiIntegrationApiService, AISummary, AIAnalytics } from '../lib/aiIntegrationApi';
+  Brain, 
+  Mic, 
+  FileText, 
+  Settings, 
+  BarChart3, 
+  Play, 
+  Pause, 
+  Square, 
+  Upload, 
+  Download,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Zap,
+  DollarSign,
+  Activity
+} from 'lucide-react';
+import { aiIntegrationService, AIAnalysisSession, AIUsageAnalytics } from '@/lib/aiIntegrationService';
+import AppLayout from '@/components/layout/AppLayout';
+import { toast } from 'sonner';
 
-interface AIIntegrationDashboardProps {
-  className?: string;
-}
+const AIIntegrationDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const [sessions, setSessions] = useState<AIAnalysisSession[]>([]);
+  const [analytics, setAnalytics] = useState<AIUsageAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalSessions, setTotalSessions] = useState(0);
 
-const AIIntegrationDashboard: React.FC<AIIntegrationDashboardProps> = ({ className = '' }) => {
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'configurations' | 'summaries' | 'transcriptions' | 'notes'>('overview');
-  const [searchFilters, setSearchFilters] = useState({
-    provider: '',
-    task_type: '',
-    status: '',
-    patient_id: '',
-    doctor_id: '',
-    date_from: '',
-    date_to: ''
-  });
-  const [showCreateConfiguration, setShowCreateConfiguration] = useState(false);
-  const [showGenerateSummary, setShowGenerateSummary] = useState(false);
-  const queryClient = useQueryClient();
+  useEffect(() => {
+    loadSessions();
+    loadAnalytics();
+  }, [currentPage, statusFilter]);
 
-  // Fetch AI summary
-  const { data: aiSummary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['ai-summary'],
-    queryFn: () => aiIntegrationApiService.getAISummary(),
-    refetchInterval: 300000, // 5 minutes
-  });
+  const loadSessions = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: currentPage,
+        limit: 10
+      };
+      
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
 
-  // Fetch AI analytics
-  const { data: aiAnalytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ['ai-analytics'],
-    queryFn: () => aiIntegrationApiService.getAIAnalytics(),
-    refetchInterval: 300000, // 5 minutes
-  });
-
-  // Fetch AI configurations
-  const { data: configurations, isLoading: configurationsLoading } = useQuery({
-    queryKey: ['ai-configurations', searchFilters],
-    queryFn: () => aiIntegrationApiService.getAIConfigurations({
-      provider: searchFilters.provider || undefined,
-      task_type: searchFilters.task_type || undefined,
-      is_active: searchFilters.status === 'active' ? true : searchFilters.status === 'inactive' ? false : undefined,
-      limit: 100
-    }),
-  });
-
-  // Fetch pre-consultation summaries
-  const { data: summaries, isLoading: summariesLoading } = useQuery({
-    queryKey: ['pre-consultation-summaries', searchFilters],
-    queryFn: () => aiIntegrationApiService.getPreConsultationSummaries({
-      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
-      doctor_id: searchFilters.doctor_id ? parseInt(searchFilters.doctor_id) : undefined,
-      status: searchFilters.status || undefined,
-      limit: 100
-    }),
-  });
-
-  // Fetch medical transcriptions
-  const { data: transcriptions, isLoading: transcriptionsLoading } = useQuery({
-    queryKey: ['medical-transcriptions', searchFilters],
-    queryFn: () => aiIntegrationApiService.getMedicalTranscriptions({
-      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
-      doctor_id: searchFilters.doctor_id ? parseInt(searchFilters.doctor_id) : undefined,
-      status: searchFilters.status || undefined,
-      limit: 100
-    }),
-  });
-
-  // Fetch clinical notes
-  const { data: clinicalNotes, isLoading: notesLoading } = useQuery({
-    queryKey: ['clinical-notes', searchFilters],
-    queryFn: () => aiIntegrationApiService.getClinicalNotes({
-      patient_id: searchFilters.patient_id ? parseInt(searchFilters.patient_id) : undefined,
-      doctor_id: searchFilters.doctor_id ? parseInt(searchFilters.doctor_id) : undefined,
-      status: searchFilters.status || undefined,
-      limit: 100
-    }),
-  });
-
-  // Generate pre-consultation summary mutation
-  const generateSummaryMutation = useMutation({
-    mutationFn: (request: any) => aiIntegrationApiService.generatePreConsultationSummary(request),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pre-consultation-summaries'] });
-      queryClient.invalidateQueries({ queryKey: ['ai-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['ai-analytics'] });
-    },
-  });
-
-  const handleGenerateSummary = (request: any) => {
-    generateSummaryMutation.mutate(request);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'text-green-600 bg-green-100';
-      case 'processing':
-        return 'text-blue-600 bg-blue-100';
-      case 'generated':
-        return 'text-purple-600 bg-purple-100';
-      case 'transcribed':
-        return 'text-indigo-600 bg-indigo-100';
-      case 'failed':
-        return 'text-red-600 bg-red-100';
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'approved':
-        return 'text-green-600 bg-green-100';
-      case 'rejected':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
+      const response = await aiIntegrationService.getAnalysisSessions(params);
+      setSessions(response.sessions);
+      setTotalSessions(response.total);
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+      toast.error('Erro ao carregar sessões de IA');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+  const loadAnalytics = async () => {
+    try {
+      const data = await aiIntegrationService.getAnalytics();
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+    }
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR');
-  };
-
-  if (summaryLoading || analyticsLoading) {
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { variant: 'secondary' as const, label: 'Pendente', icon: Clock },
+      processing: { variant: 'default' as const, label: 'Processando', icon: Activity },
+      completed: { variant: 'default' as const, label: 'Concluída', icon: CheckCircle },
+      failed: { variant: 'destructive' as const, label: 'Falhou', icon: XCircle }
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const Icon = config.icon;
+    
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
+      <Badge variant={config.variant} className="flex items-center gap-1">
+        <Icon className="w-3 h-3" />
+        {config.label}
+      </Badge>
     );
-  }
+  };
+
+  const filteredSessions = sessions.filter(session =>
+    session.patient_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    session.doctor_id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI Integration</h1>
-          <p className="text-gray-600">AI-powered medical assistance and automation</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <GradientButton
-            onClick={() => setShowCreateConfiguration(true)}
-            className="flex items-center gap-2"
-          >
-            <PlusIcon className="w-4 h-4" />
-            New Configuration
-          </GradientButton>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      {aiSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <ModernCard className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Configurations</p>
-                <AnimatedCounter
-                  value={aiSummary.total_configurations}
-                  className="text-2xl font-bold text-gray-900"
-                />
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Cog6ToothIcon className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </ModernCard>
-
-          <ModernCard className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Processing Jobs</p>
-                <AnimatedCounter
-                  value={aiSummary.total_processing_jobs}
-                  className="text-2xl font-bold text-gray-900"
-                />
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <CpuChipIcon className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </ModernCard>
-
-          <ModernCard className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                <AnimatedCounter
-                  value={aiSummary.success_rate}
-                  className="text-2xl font-bold text-gray-900"
-                />
-                <span className="text-sm text-gray-500">%</span>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircleIcon className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </ModernCard>
-
-          <ModernCard className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Cost</p>
-                <AnimatedCounter
-                  value={aiSummary.total_cost}
-                  className="text-2xl font-bold text-gray-900"
-                />
-                <span className="text-sm text-gray-500">USD</span>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-full">
-                <ChartBarIcon className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </ModernCard>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {[
-            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
-            { id: 'configurations', name: 'Configurations', icon: Cog6ToothIcon },
-            { id: 'summaries', name: 'Pre-Consultation', icon: DocumentTextIcon },
-            { id: 'transcriptions', name: 'Transcriptions', icon: MicrophoneIcon },
-            { id: 'notes', name: 'Clinical Notes', icon: ClipboardDocumentListIcon }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setSelectedTab(tab.id as any)}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                selectedTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.name}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Search and Filters */}
-      <ModernCard className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Provider</label>
-            <select
-              value={searchFilters.provider}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, provider: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Providers</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="google">Google</option>
-              <option value="azure">Azure</option>
-              <option value="local">Local</option>
-            </select>
+            <h1 className="text-3xl font-bold">Integração com IA</h1>
+            <p className="text-muted-foreground">
+              Análise automática de consultas com inteligência artificial
+            </p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Task Type</label>
-            <select
-              value={searchFilters.task_type}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, task_type: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Types</option>
-              <option value="pre_consultation_summary">Pre-Consultation Summary</option>
-              <option value="medical_transcription">Medical Transcription</option>
-              <option value="clinical_notes">Clinical Notes</option>
-              <option value="diagnosis_suggestion">Diagnosis Suggestion</option>
-              <option value="treatment_recommendation">Treatment Recommendation</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={searchFilters.status}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, status: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="completed">Completed</option>
-              <option value="processing">Processing</option>
-              <option value="failed">Failed</option>
-              <option value="generated">Generated</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
-            <input
-              type="number"
-              value={searchFilters.patient_id}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, patient_id: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Patient ID"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Doctor ID</label>
-            <input
-              type="number"
-              value={searchFilters.doctor_id}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, doctor_id: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Doctor ID"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-            <input
-              type="date"
-              value={searchFilters.date_from}
-              onChange={(e) => setSearchFilters(prev => ({ ...prev, date_from: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/ai-integration/sessions/new')}>
+              <Brain className="w-4 h-4 mr-2" />
+              Nova Análise
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/ai-integration/configuration')}>
+              <Settings className="w-4 h-4 mr-2" />
+              Configurações
+            </Button>
           </div>
         </div>
-      </ModernCard>
 
-      {/* Tab Content */}
-      {selectedTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Configurations by Provider */}
-          <ModernCard className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configurations by Provider</h3>
-            {aiAnalytics && Object.keys(aiAnalytics.configurations_by_provider).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(aiAnalytics.configurations_by_provider).map(([provider, count]) => (
-                  <div key={provider} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 capitalize">{provider}</span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Cog6ToothIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No configuration data available</p>
-              </div>
-            )}
-          </ModernCard>
+        {/* Analytics Cards */}
+        {analytics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Análises</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.total_sessions}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.successful_analyses} bem-sucedidas
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Configurations by Task Type */}
-          <ModernCard className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configurations by Task Type</h3>
-            {aiAnalytics && Object.keys(aiAnalytics.configurations_by_task_type).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(aiAnalytics.configurations_by_task_type).map(([taskType, count]) => (
-                  <div key={taskType} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 capitalize">{taskType.replace('_', ' ')}</span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No task type data available</p>
-              </div>
-            )}
-          </ModernCard>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{Math.round(analytics.average_processing_time)}s</div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round(analytics.total_processing_time / 60)}min total
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Processing Job Statistics */}
-          <ModernCard className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Processing Job Statistics</h3>
-            {aiAnalytics && Object.keys(aiAnalytics.processing_job_statistics).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(aiAnalytics.processing_job_statistics).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 capitalize">{status}</span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <CpuChipIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No processing job data available</p>
-              </div>
-            )}
-          </ModernCard>
-
-          {/* Performance Metrics */}
-          <ModernCard className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
-            {aiAnalytics && Object.keys(aiAnalytics.performance_metrics).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(aiAnalytics.performance_metrics).map(([metric, value]) => (
-                  <div key={metric} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 capitalize">{metric.replace('_', ' ')}</span>
-                    <span className="font-medium">{typeof value === 'number' ? value.toFixed(2) : value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <ChartBarIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>No performance data available</p>
-              </div>
-            )}
-          </ModernCard>
-        </div>
-      )}
-
-      {selectedTab === 'configurations' && (
-        <ModernCard className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">AI Configurations</h3>
-            <StatusIndicator status="info" />
-          </div>
-          
-          {configurationsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <LoadingSpinner />
-            </div>
-          ) : configurations && configurations.length > 0 ? (
-            <div className="space-y-3">
-              {configurations.map((configuration) => (
-                <div key={configuration.id} className="p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-gray-900">{configuration.configuration_name}</h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(configuration.is_active ? 'active' : 'inactive')}`}>
-                          {configuration.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">
-                          {configuration.provider.toUpperCase()}
-                        </span>
-                        <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-600">
-                          {configuration.task_type.replace('_', ' ')}
-                        </span>
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-1">
-                        Model: {configuration.model_name} • Max Tokens: {configuration.max_tokens}
-                      </p>
-                      
-                      <p className="text-sm text-gray-600 mb-1">
-                        Temperature: {configuration.temperature} • Top P: {configuration.top_p}
-                      </p>
-                      
-                      <p className="text-sm text-gray-600">
-                        Usage: {configuration.usage_count} • Success: {configuration.success_count} • 
-                        Avg Response: {configuration.average_response_time?.toFixed(2)}ms
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {analytics.total_sessions > 0 
+                    ? Math.round((analytics.successful_analyses / analytics.total_sessions) * 100)
+                    : 0}%
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Cog6ToothIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>No AI configurations found</p>
-            </div>
-          )}
-        </ModernCard>
-      )}
+                <p className="text-xs text-muted-foreground">
+                  {analytics.failed_analyses} falhas
+                </p>
+              </CardContent>
+            </Card>
 
-      {selectedTab === 'summaries' && (
-        <ModernCard className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Pre-Consultation Summaries</h3>
-            <div className="flex items-center gap-2">
-              <StatusIndicator status="info" />
-              <GradientButton
-                onClick={() => setShowGenerateSummary(true)}
-                className="flex items-center gap-2"
-              >
-                <SparklesIcon className="w-4 h-4" />
-                Generate Summary
-              </GradientButton>
-            </div>
-          </div>
-          
-          {summariesLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <LoadingSpinner />
-            </div>
-          ) : summaries && summaries.length > 0 ? (
-            <div className="space-y-3">
-              {summaries.map((summary) => (
-                <div key={summary.id} className="p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-gray-900">{summary.summary_id}</h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(summary.status)}`}>
-                          {summary.status}
-                        </span>
-                        {summary.confidence_score && (
-                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                            {(summary.confidence_score * 100).toFixed(0)}% confidence
-                          </span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-1">
-                        Patient: {summary.patient_id} • Doctor: {summary.doctor_id}
-                      </p>
-                      
-                      {summary.chief_complaint && (
-                        <p className="text-sm text-gray-600 mb-1">
-                          Chief Complaint: {summary.chief_complaint}
-                        </p>
-                      )}
-                      
-                      <p className="text-sm text-gray-600">
-                        Created: {formatDate(summary.created_at)}
-                        {summary.reviewed_at && ` • Reviewed: ${formatDate(summary.reviewed_at)}`}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Custo Total</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  R$ {analytics.cost_breakdown.total_cost.toFixed(2)}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <DocumentTextIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>No pre-consultation summaries found</p>
-            </div>
-          )}
-        </ModernCard>
-      )}
-
-      {selectedTab === 'transcriptions' && (
-        <ModernCard className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Medical Transcriptions</h3>
-            <StatusIndicator status="info" />
+                <p className="text-xs text-muted-foreground">
+                  Transcrição: R$ {analytics.cost_breakdown.transcription_cost.toFixed(2)}
+                </p>
+              </CardContent>
+            </Card>
           </div>
-          
-          {transcriptionsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <LoadingSpinner />
-            </div>
-          ) : transcriptions && transcriptions.length > 0 ? (
-            <div className="space-y-3">
-              {transcriptions.map((transcription) => (
-                <div key={transcription.id} className="p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-gray-900">{transcription.transcription_id}</h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(transcription.status)}`}>
-                          {transcription.status}
-                        </span>
-                        {transcription.confidence_score && (
-                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                            {(transcription.confidence_score * 100).toFixed(0)}% confidence
-                          </span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-1">
-                        Patient: {transcription.patient_id} • Doctor: {transcription.doctor_id}
-                      </p>
-                      
-                      {transcription.audio_duration_seconds && (
-                        <p className="text-sm text-gray-600 mb-1">
-                          Duration: {transcription.audio_duration_seconds.toFixed(1)}s
-                        </p>
-                      )}
-                      
-                      {transcription.cleaned_transcription && (
-                        <p className="text-sm text-gray-600 mb-1 line-clamp-2">
-                          {transcription.cleaned_transcription.substring(0, 100)}...
-                        </p>
-                      )}
-                      
-                      <p className="text-sm text-gray-600">
-                        Created: {formatDate(transcription.created_at)}
-                        {transcription.reviewed_at && ` • Reviewed: ${formatDate(transcription.reviewed_at)}`}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <MicrophoneIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>No medical transcriptions found</p>
-            </div>
-          )}
-        </ModernCard>
-      )}
+        )}
 
-      {selectedTab === 'notes' && (
-        <ModernCard className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Clinical Notes</h3>
-            <StatusIndicator status="info" />
-          </div>
-          
-          {notesLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <LoadingSpinner />
-            </div>
-          ) : clinicalNotes && clinicalNotes.length > 0 ? (
-            <div className="space-y-3">
-              {clinicalNotes.map((notes) => (
-                <div key={notes.id} className="p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-gray-900">{notes.notes_id}</h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(notes.status)}`}>
-                          {notes.status}
-                        </span>
-                        {notes.confidence_score && (
-                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                            {(notes.confidence_score * 100).toFixed(0)}% confidence
-                          </span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-1">
-                        Patient: {notes.patient_id} • Doctor: {notes.doctor_id}
-                      </p>
-                      
-                      {notes.assessment && (
-                        <p className="text-sm text-gray-600 mb-1 line-clamp-2">
-                          Assessment: {notes.assessment.substring(0, 100)}...
-                        </p>
-                      )}
-                      
-                      {notes.plan && (
-                        <p className="text-sm text-gray-600 mb-1 line-clamp-2">
-                          Plan: {notes.plan.substring(0, 100)}...
-                        </p>
-                      )}
-                      
-                      <p className="text-sm text-gray-600">
-                        Created: {formatDate(notes.created_at)}
-                        {notes.reviewed_at && ` • Reviewed: ${formatDate(notes.reviewed_at)}`}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+        {/* Usage by Feature */}
+        {analytics && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Uso por Funcionalidade
+              </CardTitle>
+              <CardDescription>
+                Distribuição do uso das funcionalidades de IA
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{analytics.usage_by_feature.transcription}</div>
+                  <p className="text-sm text-muted-foreground">Transcrições</p>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <ClipboardDocumentListIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>No clinical notes found</p>
-            </div>
-          )}
-        </ModernCard>
-      )}
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{analytics.usage_by_feature.clinical_summary}</div>
+                  <p className="text-sm text-muted-foreground">Resumos Clínicos</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{analytics.usage_by_feature.diagnosis_suggestions}</div>
+                  <p className="text-sm text-muted-foreground">Diagnósticos</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{analytics.usage_by_feature.exam_suggestions}</div>
+                  <p className="text-sm text-muted-foreground">Exames</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{analytics.usage_by_feature.treatment_suggestions}</div>
+                  <p className="text-sm text-muted-foreground">Tratamentos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Create Configuration Modal */}
-      {showCreateConfiguration && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create AI Configuration</h3>
-            
+        {/* Sessions Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sessões de Análise</CardTitle>
+            <CardDescription>
+              Gerencie e monitore suas análises de IA
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-4">
+              <Input
+                placeholder="Buscar por paciente ou médico..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar por status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Status</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                  <SelectItem value="processing">Processando</SelectItem>
+                  <SelectItem value="completed">Concluídas</SelectItem>
+                  <SelectItem value="failed">Falharam</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Configuration Name</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter configuration name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Provider</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <option value="">Select provider</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="google">Google</option>
-                  <option value="azure">Azure</option>
-                  <option value="local">Local</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Model Name</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter model name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Task Type</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <option value="">Select task type</option>
-                  <option value="pre_consultation_summary">Pre-Consultation Summary</option>
-                  <option value="medical_transcription">Medical Transcription</option>
-                  <option value="clinical_notes">Clinical Notes</option>
-                  <option value="diagnosis_suggestion">Diagnosis Suggestion</option>
-                  <option value="treatment_recommendation">Treatment Recommendation</option>
-                </select>
-              </div>
+              {loading ? (
+                <div className="text-center py-8">Carregando sessões...</div>
+              ) : filteredSessions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma sessão encontrada
+                </div>
+              ) : (
+                filteredSessions.map((session) => (
+                  <div key={session.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">Análise #{session.id.slice(-8)}</h3>
+                          {getStatusBadge(session.status)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <p>Paciente: {session.patient_id}</p>
+                          <p>Médico: {session.doctor_id}</p>
+                          <p>Criada: {new Date(session.created_at).toLocaleString()}</p>
+                          {session.analysis_results && (
+                            <div className="mt-2">
+                              <p className="font-medium">Resultados:</p>
+                              <ul className="text-xs space-y-1">
+                                <li>• {session.analysis_results.diagnostic_hypotheses.length} hipóteses diagnósticas</li>
+                                <li>• {session.analysis_results.exam_suggestions.length} sugestões de exames</li>
+                                <li>• {session.analysis_results.treatment_suggestions.length} sugestões de tratamento</li>
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/ai-integration/sessions/${session.id}`)}
+                        >
+                          <FileText className="w-4 h-4 mr-1" />
+                          Ver Detalhes
+                        </Button>
+                        
+                        {session.status === 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              // Export analysis data
+                              aiIntegrationService.exportAnalysisData(session.id)
+                                .then(blob => {
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `analise-${session.id.slice(-8)}.json`;
+                                  a.click();
+                                  window.URL.revokeObjectURL(url);
+                                })
+                                .catch(error => {
+                                  console.error('Error exporting data:', error);
+                                  toast.error('Erro ao exportar dados');
+                                });
+                            }}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Exportar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {session.transcription && (
+                      <div className="mt-3 p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Transcrição:</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {session.transcription}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
-            
-            <div className="flex items-center gap-3 mt-6">
-              <GradientButton
-                onClick={() => setShowCreateConfiguration(false)}
-                className="flex-1"
-              >
-                Cancel
-              </GradientButton>
-              <GradientButton
-                onClick={() => {
-                  // Handle create configuration logic here
-                  setShowCreateConfiguration(false);
-                }}
-                className="flex-1"
-              >
-                Create
-              </GradientButton>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Generate Summary Modal */}
-      {showGenerateSummary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Pre-Consultation Summary</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
-                <input
-                  type="number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter patient ID"
-                />
+            {/* Pagination */}
+            {totalSessions > 10 && (
+              <div className="flex justify-center mt-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="flex items-center px-3 text-sm">
+                    Página {currentPage} de {Math.ceil(totalSessions / 10)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= Math.ceil(totalSessions / 10)}
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                  >
+                    Próxima
+                  </Button>
+                </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Doctor ID</label>
-                <input
-                  type="number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter doctor ID"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Data</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Enter patient data (JSON format)"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 mt-6">
-              <GradientButton
-                onClick={() => setShowGenerateSummary(false)}
-                className="flex-1"
-              >
-                Cancel
-              </GradientButton>
-              <GradientButton
-                onClick={() => {
-                  // Handle generate summary logic here
-                  setShowGenerateSummary(false);
-                }}
-                className="flex-1"
-              >
-                Generate
-              </GradientButton>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
   );
 };
 

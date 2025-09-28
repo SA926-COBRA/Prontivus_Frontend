@@ -27,7 +27,8 @@ import {
   Zap,
   Shield,
   Pill,
-  Monitor
+  Monitor,
+  Receipt
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { dashboardApi, DashboardMetrics, Appointment, PendingTask, FinancialSummary } from '@/lib/dashboardApi';
@@ -102,11 +103,8 @@ const Dashboard = () => {
       case 'ai-integration':
         window.location.href = '/ai-integration';
         break;
-      case 'digital-prescription':
-        window.location.href = '/digital-prescription';
-        break;
-      case 'tiss':
-        window.location.href = '/tiss/dashboard';
+      case 'atendimento':
+        window.location.href = '/atendimento';
         break;
       default:
         console.log('Unknown action:', action);
@@ -417,12 +415,12 @@ const Dashboard = () => {
               Agenda Completa
                 </Button>
                 
-                {/* New Features Quick Actions */}
+                {/* Major Modules Quick Actions */}
                 <div className="border-t pt-2 mt-2">
-                  <p className="text-xs text-gray-500 mb-2 font-medium">Novas Funcionalidades</p>
+                  <p className="text-xs text-gray-500 mb-2 font-medium">Módulos Principais</p>
                   <Button 
                     variant="outline" 
-                    className="w-full justify-start hover:bg-purple-50" 
+                    className="w-full justify-start hover:bg-blue-50" 
                     onClick={() => handleQuickAction('telemedicine')}
                   >
                     <Video className="w-4 h-4 mr-2" />
@@ -436,39 +434,23 @@ const Dashboard = () => {
                     <Brain className="w-4 h-4 mr-2" />
                     IA Médica
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start hover:bg-orange-50" 
-                    onClick={() => handleQuickAction('digital-prescription')}
-                  >
-                    <FileCheck className="w-4 h-4 mr-2" />
-                    Receita Digital
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start hover:bg-blue-50" 
-                    onClick={() => handleQuickAction('tiss')}
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    TISS
-                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* New Features Widgets */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mt-6">
+          {/* Major Modules Widgets */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 mt-6">
             {/* Telemedicine Widget */}
             <Card className="hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Video className="w-5 h-5 text-purple-600" />
+                    <Video className="w-5 h-5 text-blue-600" />
                     Telemedicina
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                    Novo
+                  <Badge variant="outline" className="text-blue-600 border-blue-600">
+                    Módulo Principal
                   </Badge>
                 </div>
                 <CardDescription>Consultas por vídeo</CardDescription>
@@ -478,7 +460,7 @@ const Dashboard = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Sessões Ativas</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-purple-600">3</span>
+                      <span className="font-semibold text-blue-600">3</span>
                       <Badge variant="destructive" className="text-xs">2</Badge>
                     </div>
                   </div>
@@ -488,7 +470,7 @@ const Dashboard = () => {
                   </div>
                   <Button 
                     size="sm" 
-                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                     onClick={() => handleQuickAction('telemedicine')}
                   >
                     <Video className="w-4 h-4 mr-2" />
@@ -506,8 +488,8 @@ const Dashboard = () => {
                     <Brain className="w-5 h-5 text-green-600" />
                     IA Médica
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
-                    Novo
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    Módulo Principal
                   </Badge>
                 </div>
                 <CardDescription>Análise inteligente</CardDescription>
@@ -536,8 +518,11 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Digital Prescription Widget */}
+          {/* Integrated Features Widgets */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 mt-6">
+            {/* Digital Prescription Widget (Medical Records Module) */}
             <Card className="hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -545,11 +530,11 @@ const Dashboard = () => {
                     <FileCheck className="w-5 h-5 text-orange-600" />
                     Receita Digital
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                    Novo
+                  <Badge variant="outline" className="text-orange-600 border-orange-600">
+                    Atendimento
                   </Badge>
                 </div>
-                <CardDescription>Assinatura digital</CardDescription>
+                <CardDescription>Assinatura digital ICP-Brasil</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -567,16 +552,16 @@ const Dashboard = () => {
                   <Button 
                     size="sm" 
                     className="w-full bg-orange-600 hover:bg-orange-700"
-                    onClick={() => handleQuickAction('digital-prescription')}
+                    onClick={() => handleQuickAction('atendimento')}
                   >
-                    <FileCheck className="w-4 h-4 mr-2" />
-                    Acessar
+                    <Stethoscope className="w-4 h-4 mr-2" />
+                    Acessar Atendimento
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* TISS Widget */}
+            {/* TISS Widget (Financial Module) */}
             <Card className="hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -584,8 +569,8 @@ const Dashboard = () => {
                     <Shield className="w-5 h-5 text-blue-600" />
                     TISS
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                    Novo
+                  <Badge variant="outline" className="text-blue-600 border-blue-600">
+                    Financeiro
                   </Badge>
                 </div>
                 <CardDescription>Integração operadoras</CardDescription>
@@ -605,10 +590,10 @@ const Dashboard = () => {
                   <Button 
                     size="sm" 
                     className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleQuickAction('tiss')}
+                    onClick={() => handleQuickAction('billing')}
                   >
-                    <Shield className="w-4 h-4 mr-2" />
-                    Acessar
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Acessar Financeiro
                   </Button>
                 </div>
               </CardContent>

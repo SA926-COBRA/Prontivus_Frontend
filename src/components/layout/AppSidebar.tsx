@@ -114,13 +114,13 @@ const navigationItems = [
   },
 ]
 
-const newFeaturesItems = [
+const majorModulesItems = [
   {
     title: "Telemedicina",
     url: "/telemedicine",
     icon: Video,
     description: "Consultas por vídeo",
-    badge: "Novo",
+    badge: null,
     notification: 2
   },
   {
@@ -128,24 +128,8 @@ const newFeaturesItems = [
     url: "/ai-integration",
     icon: Brain,
     description: "Análise inteligente",
-    badge: "Novo",
+    badge: null,
     notification: 1
-  },
-  {
-    title: "Receita Digital",
-    url: "/digital-prescription",
-    icon: FileCheck,
-    description: "Assinatura digital",
-    badge: "Novo",
-    notification: 3
-  },
-  {
-    title: "TISS",
-    url: "/tiss/dashboard",
-    icon: Shield,
-    description: "Integração operadoras",
-    badge: "Novo",
-    notification: null
   },
 ]
 
@@ -304,13 +288,13 @@ export function AppSidebar() {
         <SidebarGroup>
           {!collapsed && (
             <SidebarGroupLabel className="text-xs font-bold text-primary/80 mb-3 uppercase tracking-wider flex items-center gap-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              NOVAS FUNCIONALIDADES
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              MÓDULOS PRINCIPAIS
             </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
             <SidebarMenu className={cn("transition-all duration-300", collapsed ? "space-y-1" : "space-y-1")}>
-              {newFeaturesItems.map((item) => (
+              {majorModulesItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className={cn(
                     "transition-all duration-300",
@@ -320,7 +304,7 @@ export function AppSidebar() {
                       to={item.url} 
                       className={getNavClassName(item.url)}
                       title={collapsed ? item.title : item.description}
-                      onClick={() => console.log(`New features sidebar navigation clicked: ${item.url}`)}
+                      onClick={() => console.log(`Major modules sidebar navigation clicked: ${item.url}`)}
                     >
                       <item.icon className={cn(
                         "shrink-0 group-hover:scale-110 transition-transform duration-200",
@@ -330,11 +314,6 @@ export function AppSidebar() {
                         <div className="flex-1 min-w-0 ml-3">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm leading-tight block">{item.title}</span>
-                            {item.badge && (
-                              <Badge variant="secondary" className="text-xs px-1 py-0 bg-purple-100 text-purple-700">
-                                {item.badge}
-                              </Badge>
-                            )}
                             {item.notification && (
                               <Badge variant="destructive" className="text-xs px-1 py-0 bg-red-500 text-white">
                                 {item.notification}

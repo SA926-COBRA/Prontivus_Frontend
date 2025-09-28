@@ -30,7 +30,7 @@ import {
   Microscope
 } from 'lucide-react';
 import { aiIntegrationService, AIAnalysisSession } from '@/lib/aiIntegrationService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const AIAnalysisSession: React.FC = () => {

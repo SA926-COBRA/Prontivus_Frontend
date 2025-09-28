@@ -29,7 +29,7 @@ import {
   Eye
 } from 'lucide-react';
 import { digitalPrescriptionService, DigitalPrescription, PrescriptionAnalytics } from '@/lib/digitalPrescriptionService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const DigitalPrescriptionDashboard: React.FC = () => {

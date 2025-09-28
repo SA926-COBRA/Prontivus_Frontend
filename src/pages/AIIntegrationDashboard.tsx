@@ -26,7 +26,7 @@ import {
   Activity
 } from 'lucide-react';
 import { aiIntegrationService, AIAnalysisSession, AIUsageAnalytics } from '@/lib/aiIntegrationService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const AIIntegrationDashboard: React.FC = () => {

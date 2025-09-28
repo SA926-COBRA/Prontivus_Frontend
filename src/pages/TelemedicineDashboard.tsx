@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, Users, Video, Mic, MicOff, Phone, PhoneOff, Monitor, FileText, Settings, BarChart3, Play, Pause, Square } from 'lucide-react';
 import { telemedicineService, TelemedicineSession, TelemedicineAnalytics } from '@/lib/telemedicineService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const TelemedicineDashboard: React.FC = () => {

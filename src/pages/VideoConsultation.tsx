@@ -24,7 +24,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { telemedicineService, TelemedicineSession, TelemedicineMessage } from '@/lib/telemedicineService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const VideoConsultation: React.FC = () => {

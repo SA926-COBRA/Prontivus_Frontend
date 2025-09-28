@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Save, RotateCcw, TestTube, Shield, Video, Mic, Monitor } from 'lucide-react';
 import { telemedicineService, TelemedicineConfiguration } from '@/lib/telemedicineService';
-import AppLayout from '@/components/layout/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 
 const TelemedicineConfiguration: React.FC = () => {

@@ -23,7 +23,12 @@ import {
   PlayCircle,
   FileBarChart,
   Key,
-  Home
+  Home,
+  Video,
+  Brain,
+  FileCheck,
+  Zap,
+  Monitor
 } from "lucide-react"
 import { BRANDING } from "@/config/branding"
 import {
@@ -39,6 +44,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import LogoutButton from "@/components/auth/LogoutButton"
 
@@ -47,55 +53,99 @@ const navigationItems = [
     title: "Dashboard",
     url: "/dashboard",
     icon: Home,
-    description: "Visão geral do sistema"
+    description: "Visão geral do sistema",
+    badge: null
   },
   {
     title: "Secretaria",
     url: "/secretaria",
     icon: UserCheck,
-    description: "Check-in e agendamentos"
+    description: "Check-in e agendamentos",
+    badge: 3
   },
   {
     title: "Atendimento",
     url: "/atendimento",
     icon: Stethoscope,
-    description: "Prontuário eletrônico"
+    description: "Prontuário eletrônico",
+    badge: 2
   },
   {
     title: "Agenda",
     url: "/agenda",
     icon: Calendar,
-    description: "Agendamentos médicos"
+    description: "Agendamentos médicos",
+    badge: 5
   },
   {
     title: "Financeiro",
     url: "/financeiro",
     icon: Receipt,
-    description: "TISS e faturamento"
+    description: "TISS e faturamento",
+    badge: 1
   },
   {
     title: "Estoque",
     url: "/estoque",
     icon: Warehouse,
-    description: "Materiais e medicamentos"
+    description: "Materiais e medicamentos",
+    badge: null
   },
   {
     title: "Gestão de Pacientes",
     url: "/secretaria/pacientes",
     icon: ClipboardList,
-    description: "Gerenciar pacientes e cadastros"
+    description: "Gerenciar pacientes e cadastros",
+    badge: null
   },
   {
     title: "Relatórios",
     url: "/relatorios",
     icon: TrendingUp,
-    description: "BI clínico e financeiro"
+    description: "BI clínico e financeiro",
+    badge: null
   },
   {
     title: "Demonstração",
     url: "/demo",
     icon: PlayCircle,
-    description: "Teste todas as funcionalidades"
+    description: "Teste todas as funcionalidades",
+    badge: null
+  },
+]
+
+const newFeaturesItems = [
+  {
+    title: "Telemedicina",
+    url: "/telemedicine",
+    icon: Video,
+    description: "Consultas por vídeo",
+    badge: "Novo",
+    notification: 2
+  },
+  {
+    title: "IA Médica",
+    url: "/ai-integration",
+    icon: Brain,
+    description: "Análise inteligente",
+    badge: "Novo",
+    notification: 1
+  },
+  {
+    title: "Receita Digital",
+    url: "/digital-prescription",
+    icon: FileCheck,
+    description: "Assinatura digital",
+    badge: "Novo",
+    notification: 3
+  },
+  {
+    title: "TISS",
+    url: "/tiss/dashboard",
+    icon: Shield,
+    description: "Integração operadoras",
+    badge: "Novo",
+    notification: null
   },
 ]
 
@@ -230,7 +280,67 @@ export function AppSidebar() {
                       )} />
                       {!collapsed && (
                         <div className="flex-1 min-w-0 ml-3">
-                          <span className="font-semibold text-sm leading-tight block">{item.title}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm leading-tight block">{item.title}</span>
+                            {item.badge && (
+                              <Badge variant="destructive" className="text-xs px-1 py-0 bg-red-500 text-white">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground/70 truncate mt-1 leading-tight">
+                            {item.description}
+                          </p>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          {!collapsed && (
+            <SidebarGroupLabel className="text-xs font-bold text-primary/80 mb-3 uppercase tracking-wider flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              NOVAS FUNCIONALIDADES
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu className={cn("transition-all duration-300", collapsed ? "space-y-1" : "space-y-1")}>
+              {newFeaturesItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className={cn(
+                    "transition-all duration-300",
+                    collapsed ? "h-10 px-2 py-2 justify-center" : "h-12 px-3 py-2"
+                  )}>
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClassName(item.url)}
+                      title={collapsed ? item.title : item.description}
+                      onClick={() => console.log(`New features sidebar navigation clicked: ${item.url}`)}
+                    >
+                      <item.icon className={cn(
+                        "shrink-0 group-hover:scale-110 transition-transform duration-200",
+                        collapsed ? "w-6 h-6" : "w-5 h-5"
+                      )} />
+                      {!collapsed && (
+                        <div className="flex-1 min-w-0 ml-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm leading-tight block">{item.title}</span>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs px-1 py-0 bg-purple-100 text-purple-700">
+                                {item.badge}
+                              </Badge>
+                            )}
+                            {item.notification && (
+                              <Badge variant="destructive" className="text-xs px-1 py-0 bg-red-500 text-white">
+                                {item.notification}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground/70 truncate mt-1 leading-tight">
                             {item.description}
                           </p>

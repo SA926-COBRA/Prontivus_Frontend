@@ -249,6 +249,72 @@ class TISSService {
         return 'default';
     }
   }
+
+  /**
+   * Get TISS credentials for settings page
+   */
+  async getCredentialsForSettings(): Promise<TISSCredentials[]> {
+    try {
+      const response = await apiService.get('/api/v1/tiss/credentials');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching TISS credentials:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save TISS credentials
+   */
+  async saveCredentialsForSettings(credentials: TISSCredentials[]): Promise<void> {
+    try {
+      await apiService.post('/api/v1/tiss/credentials/bulk', { credentials });
+    } catch (error) {
+      console.error('Error saving TISS credentials:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Test TISS credentials connection
+   */
+  async testCredentialsConnection(credential: TISSCredentials): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await apiService.post('/api/v1/tiss/credentials/test', credential);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error testing TISS credentials:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Erro desconhecido ao testar conexão'
+      };
+    }
+  }
+
+  /**
+   * Get doctor codes for TISS
+   */
+  async getDoctorCodesForSettings(): Promise<TISSDoctorCode[]> {
+    try {
+      const response = await apiService.get('/api/v1/tiss/doctor-codes');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching TISS doctor codes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save doctor codes
+   */
+  async saveDoctorCodesForSettings(doctorCodes: TISSDoctorCode[]): Promise<void> {
+    try {
+      await apiService.post('/api/v1/tiss/doctor-codes/bulk', { doctorCodes });
+    } catch (error) {
+      console.error('Error saving TISS doctor codes:', error);
+      throw error;
+    }
+  }
 }
 
 export default new TISSService();

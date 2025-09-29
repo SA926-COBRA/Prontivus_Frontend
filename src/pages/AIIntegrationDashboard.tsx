@@ -1,372 +1,500 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+/**
+ * AI Integration Dashboard - Frontend Component
+ * Audio-based pre-consultation with transcription and analysis
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Brain, 
   Mic, 
-  FileText, 
-  Settings, 
-  BarChart3, 
-  Play, 
-  Pause, 
+  MicOff, 
   Square, 
-  Upload, 
-  Download,
-  Clock,
+  Brain, 
+  FileText, 
+  Stethoscope, 
+  Pill, 
+  Microscope,
+  Code,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Zap,
-  DollarSign,
-  Activity
+  AlertTriangle,
+  Clock,
+  Upload,
+  RefreshCw,
+  Plus,
+  Activity,
+  BarChart3,
+  Shield
 } from 'lucide-react';
-import { aiIntegrationService, AIAnalysisSession, AIUsageAnalytics } from '@/lib/aiIntegrationService';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { toast } from 'sonner';
 
-const AIIntegrationDashboard: React.FC = () => {
-  const navigate = useNavigate();
+interface AIAnalysisSession {
+  id: string;
+  session_id: string;
+  title: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  audio_duration_seconds?: number;
+  transcription_confidence?: number;
+  recording_consent_given: boolean;
+  created_at: string;
+}
+
+const AIIntegrationDashboard = () => {
   const [sessions, setSessions] = useState<AIAnalysisSession[]>([]);
-  const [analytics, setAnalytics] = useState<AIUsageAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalSessions, setTotalSessions] = useState(0);
+  const [selectedSession, setSelectedSession] = useState<AIAnalysisSession | null>(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
-    loadAnalytics();
-  }, [currentPage, statusFilter]);
+  }, []);
 
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const params: any = {
-        page: currentPage,
-        limit: 10
-      };
-      
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
+      const response = await fetch('/api/v1/ai-integration/sessions');
+      if (response.ok) {
+        const sessionsData = await response.json();
+        setSessions(sessionsData);
       }
-
-      const response = await aiIntegrationService.getAnalysisSessions(params);
-      setSessions(response.sessions);
-      setTotalSessions(response.total);
     } catch (error) {
       console.error('Error loading sessions:', error);
-      toast.error('Erro ao carregar sessões de IA');
+      setError('Erro ao carregar sessões de análise');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadAnalytics = async () => {
+  const createNewSession = async () => {
     try {
-      const data = await aiIntegrationService.getAnalytics();
-      setAnalytics(data);
+      const response = await fetch('/api/v1/ai-integration/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Nova Análise de Consulta',
+          description: 'Análise de consulta médica com IA',
+          recording_enabled: true,
+          transcription_provider: 'openai',
+          analysis_provider: 'openai'
+        })
+      });
+      
+      if (response.ok) {
+        const newSession = await response.json();
+        setSessions(prev => [newSession, ...prev]);
+        setSelectedSession(newSession);
+        setSuccess('Nova sessão de análise criada com sucesso!');
+      }
     } catch (error) {
-      console.error('Error loading analytics:', error);
+      console.error('Error creating session:', error);
+      setError('Erro ao criar nova sessão');
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { variant: 'secondary' as const, label: 'Pendente', icon: Clock },
-      processing: { variant: 'default' as const, label: 'Processando', icon: Activity },
-      completed: { variant: 'default' as const, label: 'Concluída', icon: CheckCircle },
-      failed: { variant: 'destructive' as const, label: 'Falhou', icon: XCircle }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    const Icon = config.icon;
-    
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        <Icon className="w-3 h-3" />
-        {config.label}
-      </Badge>
-    );
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { echoCancellation: true, noiseSuppression: true } 
+      });
+      
+      const recorder = new MediaRecorder(stream);
+      recorder.start();
+      setIsRecording(true);
+      setSuccess('Gravação iniciada com sucesso!');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setError('Erro ao iniciar gravação. Verifique as permissões do microfone.');
+    }
   };
 
-  const filteredSessions = sessions.filter(session =>
-    session.patient_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    session.doctor_id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const stopRecording = () => {
+    setIsRecording(false);
+    setSuccess('Gravação finalizada com sucesso!');
+  };
+
+  const performFullAnalysis = async () => {
+    if (!selectedSession) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/v1/ai-integration/sessions/${selectedSession.session_id}/full-analysis`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        setSuccess('Análise completa concluída com sucesso!');
+      }
+    } catch (error) {
+      console.error('Error performing analysis:', error);
+      setError('Erro ao realizar análise');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="w-3 h-3 mr-1" />Concluída</Badge>;
+      case 'processing':
+        return <Badge variant="outline" className="text-yellow-600 border-yellow-600"><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Processando</Badge>;
+      case 'failed':
+        return <Badge variant="outline" className="text-red-600 border-red-600"><XCircle className="w-3 h-3 mr-1" />Falhou</Badge>;
+      default:
+        return <Badge variant="outline" className="text-gray-600 border-gray-600">Pendente</Badge>;
+    }
+  };
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Integração com IA</h1>
-            <p className="text-muted-foreground">
-              Análise automática de consultas com inteligência artificial
+            <h1 className="text-3xl font-bold text-gray-900">IA Médica - Análise de Consultas</h1>
+            <p className="text-gray-600 mt-2">
+              Gravação de áudio, transcrição e análise inteligente de consultas médicas
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/ai-integration/sessions/new')}>
-              <Brain className="w-4 h-4 mr-2" />
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-purple-600 border-purple-600">
+              <Brain className="w-3 h-3 mr-1" />
+              IA Médica
+            </Badge>
+            <Button onClick={createNewSession} className="bg-purple-600 hover:bg-purple-700">
+              <Plus className="w-4 h-4 mr-2" />
               Nova Análise
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/ai-integration/configuration')}>
-              <Settings className="w-4 h-4 mr-2" />
-              Configurações
             </Button>
           </div>
         </div>
 
-        {/* Analytics Cards */}
-        {analytics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Análises</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics.total_sessions}</div>
-                <p className="text-xs text-muted-foreground">
-                  {analytics.successful_analyses} bem-sucedidas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{Math.round(analytics.average_processing_time)}s</div>
-                <p className="text-xs text-muted-foreground">
-                  {Math.round(analytics.total_processing_time / 60)}min total
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics.total_sessions > 0 
-                    ? Math.round((analytics.successful_analyses / analytics.total_sessions) * 100)
-                    : 0}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {analytics.failed_analyses} falhas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Custo Total</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  R$ {analytics.cost_breakdown.total_cost.toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Transcrição: R$ {analytics.cost_breakdown.transcription_cost.toFixed(2)}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Alerts */}
+        {error && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
         )}
 
-        {/* Usage by Feature */}
-        {analytics && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                Uso por Funcionalidade
-              </CardTitle>
-              <CardDescription>
-                Distribuição do uso das funcionalidades de IA
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{analytics.usage_by_feature.transcription}</div>
-                  <p className="text-sm text-muted-foreground">Transcrições</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{analytics.usage_by_feature.clinical_summary}</div>
-                  <p className="text-sm text-muted-foreground">Resumos Clínicos</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{analytics.usage_by_feature.diagnosis_suggestions}</div>
-                  <p className="text-sm text-muted-foreground">Diagnósticos</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{analytics.usage_by_feature.exam_suggestions}</div>
-                  <p className="text-sm text-muted-foreground">Exames</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{analytics.usage_by_feature.treatment_suggestions}</div>
-                  <p className="text-sm text-muted-foreground">Tratamentos</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="recording">Gravação</TabsTrigger>
+            <TabsTrigger value="analysis">Análise</TabsTrigger>
+            <TabsTrigger value="results">Resultados</TabsTrigger>
+          </TabsList>
 
-        {/* Sessions Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Sessões de Análise</CardTitle>
-            <CardDescription>
-              Gerencie e monitore suas análises de IA
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 mb-4">
-              <Input
-                placeholder="Buscar por paciente ou médico..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="pending">Pendentes</SelectItem>
-                  <SelectItem value="processing">Processando</SelectItem>
-                  <SelectItem value="completed">Concluídas</SelectItem>
-                  <SelectItem value="failed">Falharam</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Sessões</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{sessions.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {sessions.filter(s => s.status === 'completed').length} concluídas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Em Processamento</CardTitle>
+                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{sessions.filter(s => s.status === 'processing').length}</div>
+                  <p className="text-xs text-muted-foreground">Análises em andamento</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {sessions.length > 0 
+                      ? Math.round((sessions.filter(s => s.status === 'completed').length / sessions.length) * 100)
+                      : 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">Análises bem-sucedidas</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {sessions.length > 0 
+                      ? Math.round(sessions.reduce((acc, s) => acc + (s.audio_duration_seconds || 0), 0) / sessions.length / 60)
+                      : 0}min
+                  </div>
+                  <p className="text-xs text-muted-foreground">Duração média das gravações</p>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-8">Carregando sessões...</div>
-              ) : filteredSessions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma sessão encontrada
-                </div>
-              ) : (
-                filteredSessions.map((session) => (
-                  <div key={session.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">Análise #{session.id.slice(-8)}</h3>
-                          {getStatusBadge(session.status)}
+            {/* Sessions List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sessões de Análise</CardTitle>
+                <CardDescription>Histórico de análises de consultas com IA</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sessions.map((session) => (
+                    <div 
+                      key={session.id} 
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        selectedSession?.id === session.id ? 'border-purple-500 bg-purple-50' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => setSelectedSession(session)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium">{session.title}</h3>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                            <span>Criado: {new Date(session.created_at).toLocaleString()}</span>
+                            {session.audio_duration_seconds && (
+                              <span>Duração: {formatTime(session.audio_duration_seconds)}</span>
+                            )}
+                            {session.transcription_confidence && (
+                              <span>Confiança: {Math.round(session.transcription_confidence * 100)}%</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          <p>Paciente: {session.patient_id}</p>
-                          <p>Médico: {session.doctor_id}</p>
-                          <p>Criada: {new Date(session.created_at).toLocaleString()}</p>
-                          {session.analysis_results && (
-                            <div className="mt-2">
-                              <p className="font-medium">Resultados:</p>
-                              <ul className="text-xs space-y-1">
-                                <li>• {session.analysis_results.diagnostic_hypotheses.length} hipóteses diagnósticas</li>
-                                <li>• {session.analysis_results.exam_suggestions.length} sugestões de exames</li>
-                                <li>• {session.analysis_results.treatment_suggestions.length} sugestões de tratamento</li>
-                              </ul>
-                            </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(session.status)}
+                          {session.recording_consent_given && (
+                            <Badge variant="outline" className="text-green-600 border-green-600">
+                              <Shield className="w-3 h-3 mr-1" />
+                              Consentimento
+                            </Badge>
                           )}
                         </div>
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/ai-integration/sessions/${session.id}`)}
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          Ver Detalhes
-                        </Button>
-                        
-                        {session.status === 'completed' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              // Export analysis data
-                              aiIntegrationService.exportAnalysisData(session.id)
-                                .then(blob => {
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `analise-${session.id.slice(-8)}.json`;
-                                  a.click();
-                                  window.URL.revokeObjectURL(url);
-                                })
-                                .catch(error => {
-                                  console.error('Error exporting data:', error);
-                                  toast.error('Erro ao exportar dados');
-                                });
-                            }}
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            Exportar
-                          </Button>
-                        )}
-                      </div>
                     </div>
-                    
-                    {session.transcription && (
-                      <div className="mt-3 p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Transcrição:</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {session.transcription}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Pagination */}
-            {totalSessions > 10 && (
-              <div className="flex justify-center mt-4">
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="flex items-center px-3 text-sm">
-                    Página {currentPage} de {Math.ceil(totalSessions / 10)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage >= Math.ceil(totalSessions / 10)}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                  >
-                    Próxima
-                  </Button>
+                  ))}
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Recording Tab */}
+          <TabsContent value="recording" className="space-y-6">
+            {selectedSession ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mic className="w-5 h-5" />
+                    Controles de Gravação
+                  </CardTitle>
+                  <CardDescription>
+                    Grave o áudio da consulta para análise com IA
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Recording Status */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                      <span className="font-medium">
+                        {isRecording ? 'Gravando...' : 'Parado'}
+                      </span>
+                      {isRecording && (
+                        <span className="text-lg font-mono">
+                          {formatTime(recordingTime)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isRecording ? (
+                        <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700">
+                          <Mic className="w-4 h-4 mr-2" />
+                          Iniciar Gravação
+                        </Button>
+                      ) : (
+                        <Button onClick={stopRecording} variant="outline">
+                          <Square className="w-4 h-4 mr-2" />
+                          Parar Gravação
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Consent Management */}
+                  <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-4 h-4 text-blue-600" />
+                      <span className="font-medium text-blue-800">Consentimento para Gravação</span>
+                    </div>
+                    <p className="text-sm text-blue-700 mb-3">
+                      É necessário o consentimento do paciente para gravar a consulta.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            recording_consent_given: true
+                          } : null);
+                        }}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Consentimento Dado
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            recording_consent_given: false
+                          } : null);
+                        }}
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Consentimento Negado
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Mic className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h2 className="text-2xl font-bold mb-2">Selecione uma Sessão</h2>
+                  <p className="text-gray-600">Escolha uma sessão de análise para iniciar a gravação</p>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          {/* Analysis Tab */}
+          <TabsContent value="analysis" className="space-y-6">
+            {selectedSession ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="w-5 h-5" />
+                    Análise com IA
+                  </CardTitle>
+                  <CardDescription>
+                    Execute transcrição e análise inteligente do áudio
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Analysis Steps */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button 
+                      disabled={loading}
+                      className="h-20 flex flex-col items-center gap-2"
+                    >
+                      <FileText className="w-6 h-6" />
+                      <span>Transcrever Áudio</span>
+                    </Button>
+
+                    <Button 
+                      onClick={performFullAnalysis} 
+                      disabled={loading}
+                      className="h-20 flex flex-col items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Brain className="w-6 h-6" />
+                      <span>Análise Completa</span>
+                    </Button>
+                  </div>
+
+                  {/* Analysis Types */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="text-center p-2 border rounded">
+                      <Stethoscope className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                      <span className="text-xs">Resumo Clínico</span>
+                    </div>
+                    <div className="text-center p-2 border rounded">
+                      <Microscope className="w-6 h-6 mx-auto mb-1 text-green-600" />
+                      <span className="text-xs">Diagnósticos</span>
+                    </div>
+                    <div className="text-center p-2 border rounded">
+                      <Activity className="w-6 h-6 mx-auto mb-1 text-yellow-600" />
+                      <span className="text-xs">Exames</span>
+                    </div>
+                    <div className="text-center p-2 border rounded">
+                      <Pill className="w-6 h-6 mx-auto mb-1 text-red-600" />
+                      <span className="text-xs">Tratamentos</span>
+                    </div>
+                    <div className="text-center p-2 border rounded">
+                      <Code className="w-6 h-6 mx-auto mb-1 text-purple-600" />
+                      <span className="text-xs">CID-10</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Brain className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h2 className="text-2xl font-bold mb-2">Selecione uma Sessão</h2>
+                  <p className="text-gray-600">Escolha uma sessão de análise para executar a IA</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Results Tab */}
+          <TabsContent value="results" className="space-y-6">
+            {selectedSession ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h2 className="text-2xl font-bold mb-2">Resultados da Análise</h2>
+                  <p className="text-gray-600">Os resultados da análise com IA aparecerão aqui após o processamento</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <h2 className="text-2xl font-bold mb-2">Selecione uma Sessão</h2>
+                  <p className="text-gray-600">Escolha uma sessão de análise para visualizar os resultados</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

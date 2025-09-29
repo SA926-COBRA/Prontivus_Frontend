@@ -49,10 +49,13 @@ import ReportGeneration from "./pages/ReportGeneration";
 import VoiceRecording from "./pages/VoiceRecording";
 import HealthInsuranceOperators from "./pages/HealthInsuranceOperators";
 import TISSDashboard from "./pages/TISSDashboard";
+import NativeTelemedicinePlatform from "./pages/NativeTelemedicinePlatform";
+import PatientTelemedicineInterface from "./pages/PatientTelemedicineInterface";
 import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
 import BIAnalyticsDashboard from "./pages/BIAnalyticsDashboard";
 import PerformanceAnalytics from "./pages/PerformanceAnalytics";
 import AnalyticsInsights from "./pages/AnalyticsInsights";
+import AIIntegrationDashboard from "./pages/AIIntegrationDashboard";
 import ControlledPrescriptions from "./pages/ControlledPrescriptions";
 import SADTManagement from "./pages/SADTManagement";
 import FinancialDashboard from "./pages/FinancialDashboard";
@@ -212,11 +215,13 @@ const App = () => (
                  <Route path="/integrations/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><IntegrationsDashboard /></RoleGuard>} />
                 <Route path="/tiss/dashboard" element={<RoleGuard allowedUserTypes={['staff']}><TISSDashboard /></RoleGuard>} />
                 <Route path="/tiss/operators" element={<RoleGuard allowedUserTypes={['staff']}><HealthInsuranceOperators /></RoleGuard>} />
-                 <Route path="/integrations/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
+                <Route path="/tiss/settings" element={<RoleGuard allowedUserTypes={['staff']}><TISSSettings /></RoleGuard>} />
+                 <Route path="/integrations/health-plans" element={<RoleGuard allowedUserTypes={['staff']}><HealthPlanIntegrationPanel /></RoleGuard>} />
                  <Route path="/integrations/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
                  <Route path="/telemedicine" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
                  <Route path="/telemedicine/sessions/:sessionId" element={<RoleGuard allowedUserTypes={['staff']}><VideoConsultation /></RoleGuard>} />
-                 <Route path="/telemedicine/configuration" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineConfiguration /></RoleGuard>} />
+                 <Route path="/telemedicine/native" element={<RoleGuard allowedUserTypes={['staff']}><NativeTelemedicinePlatform /></RoleGuard>} />
+                 <Route path="/telemedicine/join/:token" element={<PatientTelemedicineInterface />} />
                  <Route path="/integrations/sessions" element={<RoleGuard allowedUserTypes={['staff']}><TelemedicineDashboard /></RoleGuard>} />
                  <Route path="/integrations/authorizations" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />
                  <Route path="/integrations/webhooks" element={<RoleGuard allowedUserTypes={['staff']}><Demo /></RoleGuard>} />

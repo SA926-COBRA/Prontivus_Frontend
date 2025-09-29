@@ -106,6 +106,9 @@ const Dashboard = () => {
       case 'atendimento':
         window.location.href = '/atendimento';
         break;
+      case 'tiss-settings':
+        window.location.href = '/tiss/settings';
+        break;
       default:
         console.log('Unknown action:', action);
     }
@@ -590,10 +593,10 @@ const Dashboard = () => {
                   <Button 
                     size="sm" 
                     className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleQuickAction('billing')}
+                    onClick={() => handleQuickAction('tiss-settings')}
                   >
-                    <Receipt className="w-4 h-4 mr-2" />
-                    Acessar Financeiro
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configurar TISS
                   </Button>
                 </div>
               </CardContent>

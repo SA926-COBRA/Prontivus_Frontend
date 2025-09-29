@@ -49,6 +49,8 @@ import ReportGeneration from "./pages/ReportGeneration";
 import VoiceRecording from "./pages/VoiceRecording";
 import HealthInsuranceOperators from "./pages/HealthInsuranceOperators";
 import TISSDashboard from "./pages/TISSDashboard";
+import TISSSettings from "./pages/TISSSettings";
+import HealthPlanIntegrationPanel from "./pages/HealthPlanIntegrationPanel";
 import NativeTelemedicinePlatform from "./pages/NativeTelemedicinePlatform";
 import PatientTelemedicineInterface from "./pages/PatientTelemedicineInterface";
 import VoiceSessionsDashboard from "./pages/VoiceSessionsDashboard";
